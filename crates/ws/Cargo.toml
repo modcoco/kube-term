@@ -1,0 +1,12 @@
+[package]
+name = "ws"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# kube = "0.91.0"
+tracing = "0.1.40"
+anyhow = "1.0.86"
+tokio-tungstenite = { version = "0.20.1", features = ["rustls-tls-native-roots"] }
+rustls = { version = "0.21", features = ["dangerous_configuration"] }
+futures-util = { version = "0.3.29", default-features = false, features = ["async-await", "sink", "std"] }
