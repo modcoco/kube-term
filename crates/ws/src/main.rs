@@ -106,14 +106,14 @@ impl ServerCertVerifier for IgnoreAllCertificateSecurity {
 async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>> {
     tracing::debug!("attempting connection");
     let request = Request::builder()
-        .uri("wss://127.0.0.1:6443/api/v1/namespaces/cn/pods/custom-image-pod-81367424-00000021-job-0/exec?container=custom&stdin=true&stdout=true&stderr=true&tty=true&command=ls&pretty=true&follow=true")
-        .header(HOST, "127.0.0.1:6443")
-        .header("Origin", "https://127.0.0.1:6443")
+        .uri("wss://192.168.2.4:6443/api/v1/namespaces/ns/pods/podename/exec?container=custom&stdin=true&stdout=true&stderr=true&tty=true&command=ls&pretty=true&follow=true")
+        .header(HOST, "192.168.2.4:6443")
+        .header("Origin", "https://192.168.2.4:6443")
         .header(SEC_WEBSOCKET_KEY, tokio_tungstenite::tungstenite::handshake::client::generate_key())
         .header(CONNECTION, "Upgrade")
         .header(UPGRADE, "websocket")
         .header(SEC_WEBSOCKET_VERSION, "13")
-        .header("Authorization", "Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IkloUk1rOVZ6cGg1NjFSdEJqOWw4V3NTWFVMeUxPdXoxTGhZM2JYRkpSV2MifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJjbiIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJyZWFkLXNhLXRva2VuLXRva2VuLWduYmJkIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQubmFtZSI6InJlYWQtc2EtdG9rZW4iLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiIxZjQ0OGRlMi0zMWZhLTQzZTYtOGMxYS02ZTdhMDM1Y2QzYTUiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6Y246cmVhZC1zYS10b2tlbiJ9.A2uW9R2XZ5L0aECj4eVpZ-fmQngtY_w7USeROmFllx4nOA-gmSKHq1b3bm51r9O_igiIgaL69tH1W4bktIhl1cmrJRKIp_5C4lWZLWJO9A02dVgy0VHXHkOL41JFlTeq0fc_vlpPLfXKl_JEnL0CUdOzC5WNLf3ZtkKgQ8_D2-7dd7qoYArPvclqSdPjxU90wxpIEyctD_AgfVlMnpZZR2VnfjvIBuVE6e8LwmR89SyRnKqp24PYYFlQZInFioc4Uqg6MF_o0u51BPCUR9OUOQweqyW1PnTbVZOZFBmZa64qXfyRAMGp3IIhnGg7ARvihH8uU3Pc5bdXKvLfNLqSYQ")
+        .header("Authorization", "Bearer eyJhbGciOiJ")
         .body(())
         .unwrap();
     let connector = Connector::Rustls(Arc::new(
