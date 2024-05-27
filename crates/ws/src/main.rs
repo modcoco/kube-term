@@ -2,6 +2,7 @@ use anyhow::Result;
 use futures_util::{SinkExt, StreamExt};
 use rustls::client::{ServerCertVerified, ServerCertVerifier};
 use rustls::{Certificate, ServerName};
+use std::fmt;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::net::TcpStream;
@@ -107,12 +108,26 @@ impl ServerCertVerifier for IgnoreAllCertificateSecurity {
 struct UrlComponents {
     domain: String,
     port: String,
-    path: String,
+    path: PathComponents,
 }
 
 impl UrlComponents {
     fn format(&self) -> String {
         format!("wss://{}:{}{}", self.domain, self.port, self.path)
+    }
+}
+
+#[derive(Debug)]
+struct PathComponents {
+    version: String,
+    namespace: String,
+    resource_type: String,
+    resource_name: String,
+}
+
+impl fmt::Display for PathComponents {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}{}{}{}", self.version, self.namespace, self.resource_type, self.resource_name)
     }
 }
 
@@ -147,10 +162,15 @@ impl QueryParamsK8sTerm {
 async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>> {
     tracing::debug!("attempting connection");
 
-    let url_components = UrlComponents {
-        domain: "192.168.2.4".to_owned(),
-        port: "6443".to_owned(),
-        path: "/api/v1/namespaces/ns/pods/podename/".to_string(),
+    let components = UrlComponents {
+        domain: String::from("localhost"),
+        port: String::from("8080"),
+        path: PathComponents {
+            version: String::from("/api/v1"),
+            namespace: String::from("/namespaces/ns"),
+            resource_type: String::from("/pods"),
+            resource_name: String::from("/podename"),
+        },
     };
 
     let query_params = QueryParamsK8sTerm {
@@ -164,7 +184,7 @@ async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>> {
         follow: true,
     };
 
-    let websocket_url = format!("{}{}", url_components.format(), query_params.format());
+    let websocket_url = format!("{}{}", components.format(), query_params.format());
 
     let request = Request::builder()
         .uri(websocket_url)
