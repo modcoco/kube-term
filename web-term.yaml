@@ -1,0 +1,169 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-term
+  namespace: default
+  labels:
+    app: web-term
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: web-term
+  template:
+    metadata:
+      labels:
+        app: web-term
+    spec:
+      containers:
+        - name: web-term
+          image: ubuntu:22.04
+          command: ["/bin/bash", "-c"]
+          args: ["while true; do echo hello world; sleep 10;done"]
+          # ports:
+          #   - containerPort: 8000
+          # readinessProbe:
+          #   tcpSocket:
+          #     port: 8000
+          #   initialDelaySeconds: 5
+          #   periodSeconds: 10
+          # livenessProbe:
+          #   tcpSocket:
+          #     port: 8000
+          #   initialDelaySeconds: 15
+          #   periodSeconds: 20
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1024Mi
+          volumeMounts:
+            - name: timezone
+              mountPath: /etc/localtime
+            - name: config-volume
+              mountPath: /etc/config/
+      volumes:
+        - name: timezone
+          hostPath:
+            path: /usr/share/zoneinfo/Asia/Shanghai
+        - name: config-volume
+          configMap:
+            name: webterm-cm
+            items:
+              - key: config.yaml
+                path: config.yaml
+
+# ---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: web-term-svc
+#   namespace: default
+# spec:
+#   ports:
+#     - port: 8000
+#       targetPort: 8000
+#   selector:
+#     app: web-term
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: web-term-hpa-c
+  namespace: default
+  labels:
+    app: web-term-hpa-c
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: web-term
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 90
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: web-term-hpa-m
+  namespace: default
+  labels:
+    app: web-term-hpa-m
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: web-term
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 90
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: webterm-sa
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: webterm-role
+rules:
+  - verbs:
+      - list
+      - get
+    apiGroups:
+      - "*"
+    resources:
+      - pods
+      - pods/log
+  - verbs:
+      - "*"
+    apiGroups:
+      - "*"
+    resources:
+      - pods/exec
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: webterm-rb
+  namespace: default
+subjects:
+  - kind: ServiceAccount
+    name: webterm-sa
+    namespace: default
+roleRef:
+  kind: Role
+  name: webterm-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: webterm-cm
+  namespace: default
+data:
+  config.yaml: |
+    host: wss://192.168.12.12:6443
