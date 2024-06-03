@@ -70,13 +70,14 @@ spec:
 #     app: web-term
 
 ---
+
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: web-term-hpa-c
+  name: web-term-hpa
   namespace: default
   labels:
-    app: web-term-hpa-c
+    app: web-term-hpa
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
@@ -91,23 +92,6 @@ spec:
         target:
           type: Utilization
           averageUtilization: 90
-
----
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: web-term-hpa-m
-  namespace: default
-  labels:
-    app: web-term-hpa-m
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: web-term
-  minReplicas: 1
-  maxReplicas: 3
-  metrics:
     - type: Resource
       resource:
         name: memory
