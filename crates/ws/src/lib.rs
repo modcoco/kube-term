@@ -16,7 +16,7 @@ use tokio_tungstenite::{
 };
 
 #[tokio::main]
-async fn main() {
+pub async fn main() {
     if std::env::var_os("RUST_LOG").is_none() {
         std::env::set_var("RUST_LOG", "ws-server=debug"); // project_name=debug,tower_http=debug
     }
@@ -127,7 +127,11 @@ struct PathComponents {
 
 impl fmt::Display for PathComponents {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}{}{}{}", self.version, self.namespace, self.resource_type, self.resource_name)
+        write!(
+            f,
+            "{}{}{}{}",
+            self.version, self.namespace, self.resource_type, self.resource_name
+        )
     }
 }
 
