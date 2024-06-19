@@ -1,4 +1,4 @@
-use anyhow::Result;
+use common::anyhow::Result;
 use futures_util::{SinkExt, StreamExt};
 use rustls::client::{ServerCertVerified, ServerCertVerifier};
 use rustls::{Certificate, ServerName};
@@ -15,7 +15,7 @@ use tokio_tungstenite::{
     connect_async_tls_with_config, Connector, MaybeTlsStream, WebSocketStream,
 };
 
-#[tokio::main]
+// #[tokio::main]
 pub async fn main() {
     if std::env::var_os("RUST_LOG").is_none() {
         std::env::set_var("RUST_LOG", "ws-server=debug"); // project_name=debug,tower_http=debug

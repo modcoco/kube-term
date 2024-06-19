@@ -5,9 +5,9 @@ pub fn add(left: usize, right: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use reqwest::blocking::Client;
-    use reqwest::header::AUTHORIZATION;
-    use reqwest::Certificate;
+    use common::reqwest::blocking::Client;
+    use common::reqwest::header::AUTHORIZATION;
+    use common::reqwest::Certificate;
     use std::env;
     use std::fs::read;
 
@@ -39,7 +39,7 @@ mod tests {
             .add_root_certificate(cert)
             .build()?;
 
-        let mut headers = reqwest::header::HeaderMap::new();
+        let mut headers = common::reqwest::header::HeaderMap::new();
         headers.insert(
             AUTHORIZATION,
             format!("Bearer {}", kubernetes_token).parse()?,
