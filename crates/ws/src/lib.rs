@@ -1,19 +1,14 @@
 use common::anyhow::Result;
 use futures_util::{SinkExt, StreamExt};
-use rustls::client::{ServerCertVerified, ServerCertVerifier};
-use rustls::{Certificate, ServerName};
 use std::fmt;
-use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::handshake::client::Request;
 use tokio_tungstenite::tungstenite::http::header::{
     CONNECTION, HOST, SEC_WEBSOCKET_KEY, SEC_WEBSOCKET_VERSION, UPGRADE,
 };
 use tokio_tungstenite::tungstenite::Message;
-use tokio_tungstenite::{
-    connect_async_tls_with_config, Connector, MaybeTlsStream, WebSocketStream,
-};
+use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 
 // #[tokio::main]
 pub async fn main() {
@@ -85,22 +80,6 @@ async fn handle_websocket(
         } else {
             println!("WebSocket connection closed");
         }
-    }
-}
-
-struct IgnoreAllCertificateSecurity;
-
-impl ServerCertVerifier for IgnoreAllCertificateSecurity {
-    fn verify_server_cert(
-        &self,
-        _end_entity: &Certificate,
-        _intermediates: &[Certificate],
-        _server_name: &ServerName,
-        _scts: &mut dyn Iterator<Item = &[u8]>,
-        _ocsp_response: &[u8],
-        _now: SystemTime,
-    ) -> std::result::Result<ServerCertVerified, rustls::Error> {
-        Ok(ServerCertVerified::assertion())
     }
 }
 
@@ -204,13 +183,8 @@ async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>> {
         .header("Authorization", "Bearer eyJhbGciOiJ")
         .body(())
         .unwrap();
-    let connector = Connector::Rustls(Arc::new(
-        rustls::ClientConfig::builder()
-            .with_safe_defaults()
-            .with_custom_certificate_verifier(Arc::new(IgnoreAllCertificateSecurity))
-            .with_no_client_auth(),
-    ));
-    let (conn, _) = connect_async_tls_with_config(request, None, true, Some(connector)).await?;
+
+    let (conn, _) = connect_async(request).await?;
     tracing::debug!("connected");
     Ok(conn)
 }
