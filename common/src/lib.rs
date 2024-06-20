@@ -88,10 +88,10 @@ impl PodSecrets {
     }
 }
 
-pub fn url_https_formater(domain: &str, port: &str, path: &str) -> String {
+pub fn url_https_builder(domain: &str, port: &str, path: &str) -> String {
     format!("{}{}:{}{}", URL_HTTPS, domain, port, path)
 }
 
-pub fn url_http_formater(domain: &str, port: &str, path: &str) -> String {
+pub fn url_http_builder(domain: &str, port: &str, path: &str) -> String {
     format!("{}{}:{}{}", URL_HTTP, domain, port, path)
 }

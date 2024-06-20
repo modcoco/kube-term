@@ -9,7 +9,7 @@ mod tests {
     use common::reqwest::blocking::Client;
     use common::reqwest::header::AUTHORIZATION;
     use common::reqwest::Certificate;
-    use common::{url_https_formater, PodSecrets};
+    use common::{url_https_builder, PodSecrets};
 
     #[test]
     fn it_works() {
@@ -50,7 +50,7 @@ mod tests {
             format!("Bearer {}", kubernetes_token).parse()?,
         );
 
-        let url = url_https_formater(
+        let url = url_https_builder(
             &kubernetes_service_host,
             &kubernetes_service_port,
             "/version",
