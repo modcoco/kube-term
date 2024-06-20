@@ -5,11 +5,11 @@ pub fn add(left: usize, right: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use common::axum::http::HeaderMap;
     use common::reqwest::blocking::Client;
     use common::reqwest::header::AUTHORIZATION;
     use common::reqwest::Certificate;
-    use std::env;
-    use std::fs::read;
+    use common::{url_https_formater, PodSecrets};
 
     #[test]
     fn it_works() {
@@ -25,34 +25,41 @@ mod tests {
     }
 
     #[test]
-    fn rquest_tls() -> Result<(), Box<dyn std::error::Error>> {
-        let kubernetes_token = env::var("KUBERNETES_TOKEN")?;
-        let ca_cert_path = env::var("CA_CERT_PATH")?;
-        let kubernetes_service_host = env::var("KUBERNETES_SERVICE_HOST")?;
-        let kubernetes_service_port = env::var("KUBERNETES_SERVICE_PORT")?;
+    fn test_env() {
+        let ps = PodSecrets::new();
+        println!("{:?}", ps)
+    }
 
-        let cert = read(ca_cert_path)?;
-        let cert = Certificate::from_pem(&cert)?;
+    #[test]
+    fn rquest_tls() -> Result<(), anyhow::Error> {
+        let kubernetes_service_host = "ubuntu".to_owned();
+        let kubernetes_service_port = "6443".to_string();
+
+        let ps = PodSecrets::new();
+        let kubernetes_token = ps.token;
+        let kubernetes_cert = Certificate::from_pem(&ps.cacrt)?;
 
         let client = Client::builder()
             .use_rustls_tls()
-            .add_root_certificate(cert)
+            .add_root_certificate(kubernetes_cert)
             .build()?;
 
-        let mut headers = common::reqwest::header::HeaderMap::new();
+        let mut headers = HeaderMap::new();
         headers.insert(
             AUTHORIZATION,
             format!("Bearer {}", kubernetes_token).parse()?,
         );
 
-        let url = format!(
-            "https://{}:{}/version",
-            kubernetes_service_host, kubernetes_service_port
+        let url = url_https_formater(
+            &kubernetes_service_host,
+            &kubernetes_service_port,
+            "/version",
         );
 
         let response = client.get(url).headers(headers).send()?;
 
-        println!("{:?}", response.text()?);
+        println!("{}", response.status());
+        println!("{}", response.text()?);
         Ok(())
     }
 }
