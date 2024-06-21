@@ -1,6 +1,6 @@
 [workspace]
-members = ["common", "crates/*"]
+members = ["common/version","common/*","crates/*"]
 resolver = "2"
 
 [workspace.dependencies]
-common = { path = "./common" }
+common = { path = "./common/version" }
