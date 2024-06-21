@@ -89,9 +89,9 @@ impl PodSecrets {
 }
 
 pub fn url_https_builder(domain: &str, port: &str, path: &str) -> String {
-    format!("{}{}:{}{}", URL_HTTPS, domain, port, path)
+    [URL_HTTPS, domain, COLON, port, path].concat()
 }
 
 pub fn url_http_builder(domain: &str, port: &str, path: &str) -> String {
-    format!("{}{}:{}{}", URL_HTTP, domain, port, path)
+    [URL_HTTP, domain, COLON, port, path].concat()
 }
