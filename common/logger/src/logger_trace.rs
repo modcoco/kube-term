@@ -1,7 +1,7 @@
 use common::chrono::Local;
 use common::tokio::{self, time::Instant};
 use std::sync::Arc;
-use tracing::{info, Level};
+use tracing::Level;
 use tracing_subscriber::fmt::{format::Writer, time::FormatTime};
 use tracing_subscriber::layer::SubscriberExt as _;
 use tracing_subscriber::util::SubscriberInitExt as _;
@@ -34,8 +34,6 @@ pub fn setup_logger() -> Arc<tokio::time::Instant> {
         .event_format(format)
         .init();
 
-    info!("init");
-
     start_time
 }
 
@@ -57,10 +55,15 @@ pub fn init_logger() -> ReloadLogLevelHandle {
         .with(
             tracing_subscriber::fmt::layer()
                 .with_line_number(true)
-                .with_ansi(false)
+                .with_level(true)
+                .with_target(true)
+                .with_ansi(true)
                 .with_timer(LocalTimer),
         )
         .try_init();
+
+    tracing::info!("init");
+
     reload_handle
 }
 
@@ -91,3 +94,7 @@ fn main() {
 
 // CMD
 // export RUST_LOG=debug
+// let reload_handle = logger::logger_trace::init_logger();
+// std::env::set_var("RUST_LOG", "info");
+// let new_filter = tracing_subscriber::EnvFilter::from_default_env();
+// _ = reload_handle.reload(new_filter);

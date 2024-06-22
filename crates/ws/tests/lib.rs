@@ -32,7 +32,8 @@ mod tests {
 
     #[test]
     fn rquest_tls() -> Result<(), anyhow::Error> {
-        logger::logger_trace::setup_logger();
+        logger::logger_trace::init_logger();
+
         let kubernetes_service_host = "ubuntu".to_owned();
         let kubernetes_service_port = "6443".to_string();
 
