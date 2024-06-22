@@ -1,6 +1,11 @@
 pub mod logger_env;
 pub mod logger_trace;
 
+pub use logger_trace as other_logger_trace;
+
+// pub use logger_env;
+// pub use logger_trace;
+
 pub fn add(left: usize, right: usize) -> usize {
     left + right
 }
