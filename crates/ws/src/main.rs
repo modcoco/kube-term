@@ -1,16 +1,24 @@
 use common::anyhow::Result;
+use common::reqwest::Certificate;
+use common::PodSecrets;
 use futures_util::{SinkExt, StreamExt};
 use std::fmt;
+use std::sync::Arc;
 use std::time::Duration;
+use tokio::fs::File;
+use tokio::io::{AsyncReadExt as _, BufReader};
 use tokio::net::TcpStream;
+use tokio_rustls::{rustls, TlsConnector};
 use tokio_tungstenite::tungstenite::handshake::client::Request;
 use tokio_tungstenite::tungstenite::http::header::{
     CONNECTION, HOST, SEC_WEBSOCKET_KEY, SEC_WEBSOCKET_VERSION, UPGRADE,
 };
 use tokio_tungstenite::tungstenite::Message;
-use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::{
+    client_async_tls_with_config, connect_async, MaybeTlsStream, WebSocketStream,
+};
 
-// #[tokio::main]
+#[tokio::main]
 pub async fn main() {
     if std::env::var_os("RUST_LOG").is_none() {
         std::env::set_var("RUST_LOG", "ws-server=debug"); // project_name=debug,tower_http=debug
@@ -142,8 +150,11 @@ impl QueryParamsK8sTerm {
     }
 }
 
-async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>> {
+async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, anyhow::Error> {
     tracing::debug!("attempting connection");
+    let ps = PodSecrets::new();
+    let kubernetes_token = ps.token;
+    let kubernetes_cert: Certificate = Certificate::from_pem(&ps.cacrt)?;
 
     let components = UrlComponents {
         domain: String::from("localhost"),
@@ -171,8 +182,8 @@ async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>> {
 
     let request = Request::builder()
         .uri(websocket_url)
-        .header(HOST, "192.168.2.4:6443")
-        .header("Origin", "https://192.168.2.4:6443")
+        .header(HOST, "ubuntu:6443")
+        .header("Origin", "https://ubuntu:6443")
         .header(
             SEC_WEBSOCKET_KEY,
             tokio_tungstenite::tungstenite::handshake::client::generate_key(),
@@ -180,11 +191,40 @@ async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>> {
         .header(CONNECTION, "Upgrade")
         .header(UPGRADE, "websocket")
         .header(SEC_WEBSOCKET_VERSION, "13")
-        .header("Authorization", "Bearer eyJhbGciOiJ")
+        .header("Authorization", format!("Bearer {}", kubernetes_token))
         .body(())
         .unwrap();
 
     let (conn, _) = connect_async(request).await?;
-    tracing::debug!("connected");
+
+    // 创建 Rustls 客户端配置并加载根证书
+    let mut root_cert_store = rustls::RootCertStore::empty();
+    let cafile = "/path/to/ca.crt";
+    let mut buf = Vec::new();
+    let mut file = File::open(cafile).await?;
+    file.read_to_end(&mut buf).await?;
+    let mut pem = std::io::Cursor::new(buf);
+    let certs = rustls_pemfile::certs(&mut pem).collect::<Result<Vec<_>, _>>()?;
+    for cert in certs {
+        root_cert_store.add(cert);
+    }
+
+    let config = rustls::ClientConfig::builder()
+        .with_root_certificates(root_cert_store.clone())
+        .with_no_client_auth();
+
+    // 创建 Rustls TlsConnector
+    let connector = TlsConnector::from(Arc::new(config));
+    let config = tokio_rustls::rustls::ClientConfig::builder()
+        // .with_safe_defaults()
+        .with_root_certificates(root_cert_store)
+        .with_no_client_auth();
+    let connector = tokio_rustls::TlsConnector::from(std::sync::Arc::new(config));
+    let tcp_stream = TcpStream::connect(&addr).await?;
+    let tls_stream = connector.connect(domain, tcp_stream).await?;
+    let (ws_stream, _) = client_async_tls_with_config(request, tls_stream, None, None)
+        .await
+        .expect("Failed to connect");
+    tracing::info!("connected");
     Ok(conn)
 }
