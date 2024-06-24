@@ -35,5 +35,5 @@ base64 = "0.22.1"
 toml = "0.8.14"
 rustls = "0.23.10"
 rustls-pemfile = "2.1.2"
-tokio-rustls = "0.26.0"
+native-tls = "0.2.12"
 

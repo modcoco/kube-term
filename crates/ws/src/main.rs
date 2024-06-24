@@ -1,9 +1,8 @@
 use common::anyhow::Result;
-use common::constants::CACRT_PATH;
-use common::PodSecrets;
+use common::constants::COLON;
+use common::{url_https_builder, PodSecrets};
 use futures_util::{SinkExt as _, StreamExt as _};
 use logger::logger_trace::init_logger;
-use native_tls::TlsConnector;
 use std::fmt;
 use std::time::Duration;
 use tokio::net::TcpStream;
@@ -69,7 +68,6 @@ async fn handle_websocket(
             }
             Message::Pong(_) => todo!(),
             Message::Close(_) => {
-                // 处理关闭消息
                 break;
             }
             Message::Frame(_) => todo!(),
@@ -103,17 +101,12 @@ impl UrlComponents {
 struct PathComponents {
     version: String,
     namespace: String,
-    resource_type: String,
-    resource_name: String,
+    pod: String,
 }
 
 impl fmt::Display for PathComponents {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}{}{}{}",
-            self.version, self.namespace, self.resource_type, self.resource_name
-        )
+        write!(f, "{}{}{}", self.version, self.namespace, self.pod)
     }
 }
 
@@ -148,17 +141,15 @@ impl QueryParamsK8sTerm {
 async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, anyhow::Error> {
     tracing::debug!("attempting connection");
     let ps = PodSecrets::new();
-    let kubernetes_token = ps.token;
-    // let kubernetes_cert: Certificate = Certificate::from_pem(&ps.cacrt)?;
+    let kubernetes_token = &ps.token;
 
     let components = UrlComponents {
-        domain: String::from("ubuntu"),
-        port: String::from("6443"),
+        domain: String::from(&ps.kube_host),
+        port: String::from(&ps.kube_port),
         path: PathComponents {
             version: String::from("/api/v1"),
             namespace: String::from("/namespaces/default"),
-            resource_type: String::from("/pods"),
-            resource_name: String::from("/web-term-559fdfcd89-gndr5"),
+            pod: String::from("/pods/web-term-559fdfcd89-gndr5"),
         },
     };
 
@@ -174,10 +165,11 @@ async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, anyhow:
     };
 
     let websocket_url = format!("{}/exec{}", components.format(), query_params.format());
+    let kube_domain = url_https_builder(&ps.kube_host, &ps.kube_port, "");
     let request = Request::builder()
         .uri(websocket_url)
-        .header(HOST, "ubuntu:6443")
-        .header("Origin", "https://ubuntu:6443")
+        .header(HOST, format!("{}{}{}", &ps.kube_host, COLON, &ps.kube_port))
+        .header("Origin", kube_domain)
         .header(
             SEC_WEBSOCKET_KEY,
             tokio_tungstenite::tungstenite::handshake::client::generate_key(),
@@ -189,30 +181,15 @@ async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, anyhow:
         .header(SEC_WEBSOCKET_PROTOCOL, "channel.k8s.io")
         .body(())?;
 
-    let connector = Connector::NativeTls(get_tls_connector()?);
+    let connector = Connector::NativeTls(ps.get_tls_connector()?);
     match connect_async_tls_with_config(request, None, true, Some(connector)).await {
         Ok((conn, _)) => {
             tracing::info!("Successfully connected!");
             Ok(conn)
         }
         Err(err) => {
-            tracing::warn!("Failed to connect: {}", err);
+            tracing::info!("Failed to connect: {}", err);
             Err(Box::new(err).into())
         }
     }
-}
-
-pub fn get_tls_connector() -> Result<TlsConnector, anyhow::Error> {
-    common::dotenv::dotenv().ok();
-    let cacrt_path = CACRT_PATH;
-    let mut builder = native_tls::TlsConnector::builder();
-    let local_cacrt_path = &std::env::var("CA_CERT_PATH").unwrap_or_else(|_| {
-        tracing::debug!("Local nothing, using {}", cacrt_path);
-        String::default()
-    });
-    let cert = std::fs::read_to_string(local_cacrt_path)?;
-    let cert = native_tls::Certificate::from_pem(cert.as_bytes())?;
-    builder.add_root_certificate(cert);
-
-    Ok(builder.build()?)
 }
