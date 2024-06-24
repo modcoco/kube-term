@@ -9,9 +9,9 @@ edition = "2021"
 tokio = { version = "1.34.0", features = ["full"] }
 tracing = "0.1.40"
 tracing-subscriber = { version="0.3.18", features = ["env-filter"] }
-tokio-tungstenite = { version = "0.20.1", features = ["rustls-tls-native-roots"] }
+tokio-tungstenite = { version = "0.23.1", features = ["native-tls"] }
 log = "0.4.8"
-env_logger = "0.9.0"
+env_logger = "0.11.3"
 futures-util = { version = "0.3.29", default-features = false, features = ["async-await", "sink", "std"] }
 url = "2.5.0"
 futures-channel = "0.3.29"
@@ -19,7 +19,8 @@ hyper = { version = "0.14.25", default-features = false, features = ["http1", "s
 http = "1.0.0"
 wasm-bindgen = "0.2.89"
 rand = "0.8.5"
-base64 = "0.21.5"
-rustls = { version = "0.21", features = ["dangerous_configuration"] }
+base64 = "0.22.1"
+rustls = { version = "0.23.10" }
 anyhow = "1"
-
+rustls-pemfile = "2.1.2"
+native-tls = "0.2.12"

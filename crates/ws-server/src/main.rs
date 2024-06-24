@@ -1,10 +1,8 @@
 use anyhow::Result;
 use futures_util::{SinkExt, StreamExt};
 use log::debug;
-use rustls::client::{ServerCertVerified, ServerCertVerifier};
-use rustls::{Certificate, ServerName};
-use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use native_tls::TlsConnector;
+use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::handshake::client::Request;
 use tokio_tungstenite::tungstenite::http::header::{
@@ -88,22 +86,6 @@ async fn handle_websocket(
     }
 }
 
-struct IgnoreAllCertificateSecurity;
-
-impl ServerCertVerifier for IgnoreAllCertificateSecurity {
-    fn verify_server_cert(
-        &self,
-        _end_entity: &Certificate,
-        _intermediates: &[Certificate],
-        _server_name: &ServerName,
-        _scts: &mut dyn Iterator<Item = &[u8]>,
-        _ocsp_response: &[u8],
-        _now: SystemTime,
-    ) -> std::result::Result<ServerCertVerified, rustls::Error> {
-        Ok(ServerCertVerified::assertion())
-    }
-}
-
 async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>> {
     debug!("attempting connection");
     let request = Request::builder()
@@ -118,13 +100,18 @@ async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>> {
         .header("Authorization", "Bearer ")
         .body(())
         .unwrap();
-    let connector = Connector::Rustls(Arc::new(
-        rustls::ClientConfig::builder()
-            .with_safe_defaults()
-            .with_custom_certificate_verifier(Arc::new(IgnoreAllCertificateSecurity))
-            .with_no_client_auth(),
-    ));
+
+    let connector = Connector::NativeTls(get_tls_connector()?);
     let (conn, _) = connect_async_tls_with_config(request, None, true, Some(connector)).await?;
     debug!("connected");
     Ok(conn)
+}
+
+pub fn get_tls_connector() -> Result<TlsConnector, anyhow::Error> {
+    let mut builder = native_tls::TlsConnector::builder();
+    let cert = std::fs::read_to_string("/home/mahongqin/.k8s/ca.crt")?;
+    let cert = native_tls::Certificate::from_pem(cert.as_bytes())?;
+    builder.add_root_certificate(cert);
+
+    Ok(builder.build().unwrap())
 }
