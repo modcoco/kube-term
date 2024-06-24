@@ -97,7 +97,7 @@ async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>> {
         .header(UPGRADE, "websocket")
         .header(SEC_WEBSOCKET_VERSION, "13")
         .header(SEC_WEBSOCKET_PROTOCOL, "channel.k8s.io")
-        .header("Authorization", "Bearer ")
+        .header("Authorization", "Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IlduWlBiM0E5LXVQa3E0TzJzSEw5eTlxMDFUYTgyRnd1cnhMUXoyUTNJLUUifQ.eyJhdWQiOlsiaHR0cHM6Ly9rdWJlcm5ldGVzLmRlZmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWwiXSwiZXhwIjoxNzUwNzQ2ODU2LCJpYXQiOjE3MTkyMTA4NTYsImlzcyI6Imh0dHBzOi8va3ViZXJuZXRlcy5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsIiwia3ViZXJuZXRlcy5pbyI6eyJuYW1lc3BhY2UiOiJkZWZhdWx0IiwicG9kIjp7Im5hbWUiOiJ3ZWItdGVybS01NTlmZGZjZDg5LWduZHI1IiwidWlkIjoiMDlmNDhhNzUtMjFkMC00Njk0LTk4YWYtMzc5NTBmM2ZkZTdhIn0sInNlcnZpY2VhY2NvdW50Ijp7Im5hbWUiOiJ3ZWJ0ZXJtLXNhIiwidWlkIjoiM2UwNWNmYjAtNzc0NS00ZTNmLThiYjctNWMxNzZkZDAzNDNlIn0sIndhcm5hZnRlciI6MTcxOTIxNDQ2M30sIm5iZiI6MTcxOTIxMDg1Niwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50OmRlZmF1bHQ6d2VidGVybS1zYSJ9.OCuYM5b45S3lAxEh-QmQ7Jz8njhGezZya_pDybSI11s55qaIwmKDc3oCkrbAsNs79ysYG82VdSEee6Zvtxf41_mNAOlmjXfV64O1dSS1sxbQ1KbAq2QrgJQym3TJRHEldH-2kyv5E5HTeoaNPCmUVy7jeg2nGV_Ow5LY9ZTTcuM04Z9uVHx13hCj-sTO_PMD2_FBGhjG1ub3LITfecc78Y4ZpY2SZsoD4TPgQOOcMGOQ9VAIHkb4ttDY613LkxYxNycAYV_M-DdPpE7AO6HZHJjjraGel1a_CVlZWmgj-3TuNTBmyuPp1LPg-MCbqQOd0AANf1wr1OyBqkqquL7-vg")
         .body(())
         .unwrap();
 

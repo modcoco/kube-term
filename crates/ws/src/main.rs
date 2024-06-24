@@ -1,45 +1,43 @@
 use common::anyhow::Result;
+use common::constants::CACRT_PATH;
 use common::PodSecrets;
-use futures_util::{SinkExt, StreamExt};
+use futures_util::{SinkExt as _, StreamExt as _};
+use native_tls::TlsConnector;
 use std::fmt;
 use std::time::Duration;
-use tokio::fs::File;
-use tokio::io::AsyncReadExt as _;
 use tokio::net::TcpStream;
-use tokio_rustls::client::TlsStream;
-use tokio_rustls::rustls;
 use tokio_tungstenite::tungstenite::handshake::client::Request;
 use tokio_tungstenite::tungstenite::http::header::{
     CONNECTION, HOST, SEC_WEBSOCKET_KEY, SEC_WEBSOCKET_PROTOCOL, SEC_WEBSOCKET_VERSION, UPGRADE,
 };
 use tokio_tungstenite::tungstenite::Message;
-use tokio_tungstenite::{client_async_tls_with_config, MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::{
+    connect_async_tls_with_config, Connector, MaybeTlsStream, WebSocketStream,
+};
 
 #[tokio::main]
-pub async fn main() {
+async fn main() {
     if std::env::var_os("RUST_LOG").is_none() {
         std::env::set_var("RUST_LOG", "ws-server=debug"); // project_name=debug,tower_http=debug
     }
     tracing_subscriber::fmt::init();
     tracing::info!("init");
 
-    let conn: std::result::Result<
-        tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<TlsStream<TcpStream>>>,
-        anyhow::Error,
-    > = connect().await;
+    let conn: std::prelude::v1::Result<WebSocketStream<MaybeTlsStream<TcpStream>>, anyhow::Error> =
+        connect().await;
     match conn {
         Ok(mut ws_stream) => {
             let mut closed = false;
             handle_websocket(&mut ws_stream, &mut closed).await;
         }
-        Err(_) => {
-            println!("ERROR")
+        Err(err) => {
+            println!("ERROR, {}", err)
         }
     };
 }
 
 async fn handle_websocket(
-    ws_stream: &mut WebSocketStream<MaybeTlsStream<TlsStream<TcpStream>>>,
+    ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
     is_closed: &mut bool,
 ) {
     while let Some(Ok(msg)) = ws_stream.next().await {
@@ -149,7 +147,7 @@ impl QueryParamsK8sTerm {
     }
 }
 
-async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TlsStream<TcpStream>>>, anyhow::Error> {
+async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, anyhow::Error> {
     tracing::debug!("attempting connection");
     let ps = PodSecrets::new();
     let kubernetes_token = ps.token;
@@ -162,12 +160,12 @@ async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TlsStream<TcpStream>
             version: String::from("/api/v1"),
             namespace: String::from("/namespaces/default"),
             resource_type: String::from("/pods"),
-            resource_name: String::from("/web-term-85b6756ff7-b42hk"),
+            resource_name: String::from("/web-term-559fdfcd89-gndr5"),
         },
     };
 
     let query_params = QueryParamsK8sTerm {
-        container: "custom".to_string(),
+        container: "web-term".to_string(),
         stdin: true,
         stdout: true,
         stderr: true,
@@ -177,8 +175,7 @@ async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TlsStream<TcpStream>
         follow: true,
     };
 
-    let websocket_url = format!("{}{}", components.format(), query_params.format());
-
+    let websocket_url = format!("{}/exec{}", components.format(), query_params.format());
     let request = Request::builder()
         .uri(websocket_url)
         .header(HOST, "ubuntu:6443")
@@ -192,37 +189,32 @@ async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TlsStream<TcpStream>
         .header(SEC_WEBSOCKET_VERSION, "13")
         .header("Authorization", format!("Bearer {}", kubernetes_token))
         .header(SEC_WEBSOCKET_PROTOCOL, "channel.k8s.io")
-        .body(())
-        .unwrap();
+        .body(())?;
 
-    rustls::crypto::ring::default_provider()
-        .install_default()
-        .expect("Failed to install rustls crypto provider");
-    // 创建 Rustls 客户端配置并加载根证书
-    let mut root_cert_store = rustls::RootCertStore::empty();
-    let cafile = "/home/mahongqin/.k8s/ca.crt";
-    let mut buf = Vec::new();
-    let mut file = File::open(cafile).await?;
-    file.read_to_end(&mut buf).await?;
-    let mut pem = std::io::Cursor::new(buf);
-    let certs = rustls_pemfile::certs(&mut pem).collect::<Result<Vec<_>, _>>()?;
-    for cert in certs {
-        _ = root_cert_store.add(cert);
+    let connector = Connector::NativeTls(get_tls_connector()?);
+    match connect_async_tls_with_config(request, None, true, Some(connector)).await {
+        Ok((conn, _)) => {
+            println!("Successfully connected!");
+            Ok(conn)
+        }
+        Err(err) => {
+            println!("Failed to connect: {}", err);
+            Err(Box::new(err).into())
+        }
     }
+}
 
-    let config = tokio_rustls::rustls::ClientConfig::builder()
-        .with_root_certificates(root_cert_store)
-        .with_no_client_auth();
+pub fn get_tls_connector() -> Result<TlsConnector, anyhow::Error> {
+    common::dotenv::dotenv().ok();
+    let cacrt_path = CACRT_PATH;
+    let mut builder = native_tls::TlsConnector::builder();
+    let local_cacrt_path = &std::env::var("CA_CERT_PATH").unwrap_or_else(|_| {
+        tracing::debug!("Local nothing, using {}", cacrt_path);
+        String::default()
+    });
+    let cert = std::fs::read_to_string(local_cacrt_path)?;
+    let cert = native_tls::Certificate::from_pem(cert.as_bytes())?;
+    builder.add_root_certificate(cert);
 
-    let connector = tokio_rustls::TlsConnector::from(std::sync::Arc::new(config));
-    let tcp_stream = TcpStream::connect("ubuntu:6443").await?;
-    let domain = rustls::pki_types::ServerName::try_from("ubuntu").unwrap();
-    let tls_stream: TlsStream<TcpStream> = connector.connect(domain, tcp_stream).await?;
-
-    let (ws_stream, _) = client_async_tls_with_config(request, tls_stream, None, None)
-        .await
-        .expect("Failed to connect");
-    tracing::info!("connected");
-
-    Ok(ws_stream)
+    Ok(builder.build()?)
 }

@@ -6,7 +6,7 @@ pub use reqwest;
 pub use sqlx;
 pub use tokio;
 
-mod constants;
+pub mod constants;
 use constants::*;
 
 #[derive(Debug)]
