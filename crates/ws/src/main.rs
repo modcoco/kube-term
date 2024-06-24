@@ -2,6 +2,7 @@ use common::anyhow::Result;
 use common::constants::CACRT_PATH;
 use common::PodSecrets;
 use futures_util::{SinkExt as _, StreamExt as _};
+use logger::logger_trace::init_logger;
 use native_tls::TlsConnector;
 use std::fmt;
 use std::time::Duration;
@@ -17,10 +18,7 @@ use tokio_tungstenite::{
 
 #[tokio::main]
 async fn main() {
-    if std::env::var_os("RUST_LOG").is_none() {
-        std::env::set_var("RUST_LOG", "ws-server=debug"); // project_name=debug,tower_http=debug
-    }
-    tracing_subscriber::fmt::init();
+    init_logger();
     tracing::info!("init");
 
     let conn: std::prelude::v1::Result<WebSocketStream<MaybeTlsStream<TcpStream>>, anyhow::Error> =
@@ -194,11 +192,11 @@ async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, anyhow:
     let connector = Connector::NativeTls(get_tls_connector()?);
     match connect_async_tls_with_config(request, None, true, Some(connector)).await {
         Ok((conn, _)) => {
-            println!("Successfully connected!");
+            tracing::info!("Successfully connected!");
             Ok(conn)
         }
         Err(err) => {
-            println!("Failed to connect: {}", err);
+            tracing::warn!("Failed to connect: {}", err);
             Err(Box::new(err).into())
         }
     }
