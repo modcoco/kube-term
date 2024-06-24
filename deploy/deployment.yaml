@@ -16,6 +16,8 @@ spec:
       labels:
         app: web-term
     spec:
+      automountServiceAccountToken: true
+      serviceAccountName: webterm-sa
       containers:
         - name: web-term
           image: ubuntu:22.04

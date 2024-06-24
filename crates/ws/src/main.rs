@@ -10,7 +10,7 @@ use tokio_rustls::client::TlsStream;
 use tokio_rustls::rustls;
 use tokio_tungstenite::tungstenite::handshake::client::Request;
 use tokio_tungstenite::tungstenite::http::header::{
-    CONNECTION, HOST, SEC_WEBSOCKET_KEY, SEC_WEBSOCKET_VERSION, UPGRADE,
+    CONNECTION, HOST, SEC_WEBSOCKET_KEY, SEC_WEBSOCKET_PROTOCOL, SEC_WEBSOCKET_VERSION, UPGRADE,
 };
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{client_async_tls_with_config, MaybeTlsStream, WebSocketStream};
@@ -156,7 +156,7 @@ async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TlsStream<TcpStream>
     // let kubernetes_cert: Certificate = Certificate::from_pem(&ps.cacrt)?;
 
     let components = UrlComponents {
-        domain: String::from("192.168.2.4"),
+        domain: String::from("ubuntu"),
         port: String::from("6443"),
         path: PathComponents {
             version: String::from("/api/v1"),
@@ -181,8 +181,8 @@ async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TlsStream<TcpStream>
 
     let request = Request::builder()
         .uri(websocket_url)
-        .header(HOST, "192.168.2.4:6443")
-        .header("Origin", "https://192.168.2.4:6443")
+        .header(HOST, "ubuntu:6443")
+        .header("Origin", "https://ubuntu:6443")
         .header(
             SEC_WEBSOCKET_KEY,
             tokio_tungstenite::tungstenite::handshake::client::generate_key(),
@@ -191,6 +191,7 @@ async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TlsStream<TcpStream>
         .header(UPGRADE, "websocket")
         .header(SEC_WEBSOCKET_VERSION, "13")
         .header("Authorization", format!("Bearer {}", kubernetes_token))
+        .header(SEC_WEBSOCKET_PROTOCOL, "channel.k8s.io")
         .body(())
         .unwrap();
 
@@ -214,9 +215,9 @@ async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TlsStream<TcpStream>
         .with_no_client_auth();
 
     let connector = tokio_rustls::TlsConnector::from(std::sync::Arc::new(config));
-    let tcp_stream = TcpStream::connect("192.168.2.4:6443").await?;
-    let domain = rustls::pki_types::ServerName::try_from("192.168.2.4").unwrap();
-    let tls_stream = connector.connect(domain, tcp_stream).await?;
+    let tcp_stream = TcpStream::connect("ubuntu:6443").await?;
+    let domain = rustls::pki_types::ServerName::try_from("ubuntu").unwrap();
+    let tls_stream: TlsStream<TcpStream> = connector.connect(domain, tcp_stream).await?;
 
     let (ws_stream, _) = client_async_tls_with_config(request, tls_stream, None, None)
         .await
