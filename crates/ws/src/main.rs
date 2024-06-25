@@ -28,7 +28,7 @@ async fn main() {
         stdout: true,
         stderr: true,
         tty: true,
-        command: "ls".to_string(),
+        command: "sh".to_string(),
         pretty: true,
         follow: true,
     };
