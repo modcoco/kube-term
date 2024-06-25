@@ -86,12 +86,12 @@ async fn handle_websocket(
         }
     }
 
-    // tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-    // if !*is_closed {
-    //     if let Err(e) = ws_stream.close(None).await {
-    //         tracing::error!("Failed to close WebSocket connection: {}", e);
-    //     } else {
-    //         tracing::info!("WebSocket connection closed");
-    //     }
-    // }
+    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+    if !*is_closed {
+        if let Err(e) = ws_stream.close(None).await {
+            tracing::error!("Failed to close WebSocket connection: {}", e);
+        } else {
+            tracing::info!("WebSocket connection closed");
+        }
+    }
 }
