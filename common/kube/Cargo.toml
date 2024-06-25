@@ -5,3 +5,5 @@ edition = "2021"
 
 [dependencies]
 common.workspace = true
+kube-runtime = { version = "0.92.1", package = "kube", features = ["runtime", "derive"] }
+k8s-openapi = { version = "0.22.0", features = ["latest"] }

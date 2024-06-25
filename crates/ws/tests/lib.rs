@@ -9,7 +9,8 @@ mod tests {
     use common::reqwest::blocking::Client;
     use common::reqwest::header::AUTHORIZATION;
     use common::reqwest::Certificate;
-    use common::{url_https_builder, ServiceAccountToken};
+    use common::{anyhow, tracing, url_https_builder};
+    use kube::ServiceAccountToken;
 
     #[test]
     fn it_works() {

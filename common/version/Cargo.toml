@@ -36,4 +36,10 @@ toml = "0.8.14"
 rustls = "0.23.10"
 rustls-pemfile = "2.1.2"
 native-tls = "0.2.12"
+tokio-tungstenite = { version = "0.23.1", features = ["native-tls"] }
+futures-util = { version = "0.3.29", default-features = false, features = [
+    "async-await",
+    "sink",
+    "std",
+] }
 
