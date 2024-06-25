@@ -40,17 +40,17 @@ impl ServiceAccountToken {
         let kube_port =
             &std::env::var("KUBERNETES_SERVICE_PORT").unwrap_or_else(|_| String::default());
 
-        let local_cacrt_path = &std::env::var("CA_CERT_PATH").unwrap_or_else(|_| {
+        let local_cacrt_path = &std::env::var("KUBERNETES_CA_CERT_PATH").unwrap_or_else(|_| {
             tracing::debug!("Local nothing, using {}", cacrt_path);
             String::default()
         });
 
-        let local_namespace = &std::env::var("NAMESPACE_PATH").unwrap_or_else(|_| {
+        let local_namespace = &std::env::var("KUBERNETES_NAMESPACE_PATH").unwrap_or_else(|_| {
             tracing::debug!("Local nothing, using {}", namespace);
             String::default()
         });
 
-        let local_token_path = &std::env::var("TOKEN_PATH").unwrap_or_else(|_| {
+        let local_token_path = &std::env::var("KUBERNETES_TOKEN_PATH").unwrap_or_else(|_| {
             tracing::debug!("Local nothing, using {}", token_path);
             String::default()
         });
@@ -104,7 +104,7 @@ impl ServiceAccountToken {
         dotenv::dotenv().ok();
         let cacrt_path = CACRT_PATH;
         let mut builder = native_tls::TlsConnector::builder();
-        let local_cacrt_path = &std::env::var("CA_CERT_PATH").unwrap_or_else(|_| {
+        let local_cacrt_path = &std::env::var("KUBERNETES_CA_CERT_PATH").unwrap_or_else(|_| {
             tracing::debug!("Local nothing, using {}", cacrt_path);
             String::default()
         });
