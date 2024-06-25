@@ -12,8 +12,6 @@ mod pod_exec;
 #[tokio::main]
 async fn main() {
     init_logger();
-    tracing::info!("init");
-
     let sat = ServiceAccountToken::new();
     let pod_exec_url = PodExecUrl {
         domain: String::from(&sat.kube_host),
@@ -58,26 +56,26 @@ async fn handle_websocket(
         }
         match msg {
             Message::Text(text) => {
-                println!("Received text message: {}", text);
+                tracing::info!("Received text message: {}", text);
             }
             Message::Binary(data) => {
                 if let Ok(text) = String::from_utf8(data) {
-                    println!("Received binary message as text: {}", text);
+                    tracing::info!("Received binary message as text: {}", text);
                     if !*is_closed {
                         let text_message = Message::Text(text);
                         if let Err(e) = ws_stream.send(text_message).await {
-                            eprintln!("Failed to send text message: {}", e);
+                            tracing::error!("Failed to send text message: {}", e);
                         }
                     }
                 } else {
-                    println!("Failed to convert binary message to text");
+                    tracing::info!("Failed to convert binary message to text");
                 }
             }
             Message::Ping(ping) => {
                 if !*is_closed {
                     let pong = Message::Pong(ping);
                     if let Err(e) = ws_stream.send(pong).await {
-                        eprintln!("Failed to send Pong: {}", e);
+                        tracing::error!("Failed to send Pong: {}", e);
                     }
                 }
             }
@@ -92,9 +90,9 @@ async fn handle_websocket(
     tokio::time::sleep(Duration::from_secs(10)).await;
     if !*is_closed {
         if let Err(e) = ws_stream.close(None).await {
-            eprintln!("Failed to close WebSocket connection: {}", e);
+            tracing::error!("Failed to close WebSocket connection: {}", e);
         } else {
-            println!("WebSocket connection closed");
+            tracing::info!("WebSocket connection closed");
         }
     }
 }

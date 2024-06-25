@@ -30,16 +30,16 @@ impl Default for ServiceAccountToken {
 impl ServiceAccountToken {
     pub fn new() -> Self {
         dotenv::dotenv().ok();
+        // Default Kube Env
         let mut cacrt_path = CACRT_PATH;
         let mut namespace = NAMESPACE_PATH;
         let mut token_path = TOKEN_PATH;
-
-        // TODO: use default
-        let kube_host =
-            &std::env::var("KUBERNETES_SERVICE_HOST").unwrap_or_else(|_| String::default());
-        let kube_port =
+        let mut kube_host =
+            &std::env::var("KUBERNETES_PORT_443_TCP_ADDR").unwrap_or_else(|_| String::default());
+        let mut kube_port =
             &std::env::var("KUBERNETES_SERVICE_PORT").unwrap_or_else(|_| String::default());
 
+        // Local Env
         let local_cacrt_path = &std::env::var("KUBERNETES_CA_CERT_PATH").unwrap_or_else(|_| {
             tracing::debug!("Local nothing, using {}", cacrt_path);
             String::default()
@@ -55,13 +55,20 @@ impl ServiceAccountToken {
             String::default()
         });
 
+        let local_kube_host =
+            &std::env::var("KUBERNETES_SERVICE_HOST").unwrap_or_else(|_| String::default());
+
+        let local_kube_port =
+            &std::env::var("KUBERNETES_SERVICE_PORT").unwrap_or_else(|_| String::default());
+
         match std::env::var("APP_ENV") {
             Ok(app_env) => {
                 if app_env == APP_ENV_LOCAL {
                     cacrt_path = local_cacrt_path;
                     namespace = local_namespace;
                     token_path = local_token_path;
-                    tracing::info!("{}", token_path)
+                    kube_host = local_kube_host;
+                    kube_port = local_kube_port;
                 }
             }
             Err(_) => {
