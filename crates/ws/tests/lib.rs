@@ -34,12 +34,9 @@ mod tests {
     fn rquest_tls() -> Result<(), anyhow::Error> {
         logger::logger_trace::init_logger();
 
-        let kubernetes_service_host = "ubuntu".to_owned();
-        let kubernetes_service_port = "6443".to_string();
-
-        let ps = ServiceAccountToken::new();
-        let kubernetes_token = ps.token;
-        let kubernetes_cert = Certificate::from_pem(&ps.cacrt)?;
+        let sat = ServiceAccountToken::new();
+        let kubernetes_token = sat.token;
+        let kubernetes_cert = Certificate::from_pem(&sat.cacrt)?;
 
         let client = Client::builder()
             .use_rustls_tls()
@@ -52,12 +49,7 @@ mod tests {
             format!("Bearer {}", kubernetes_token).parse()?,
         );
 
-        let url = url_https_builder(
-            &kubernetes_service_host,
-            &kubernetes_service_port,
-            Some("/version"),
-        );
-
+        let url = url_https_builder(&sat.kube_host, &sat.kube_port, Some("/version"));
         let response = client.get(url).headers(headers).send()?;
 
         tracing::info!("{}", response.status());
