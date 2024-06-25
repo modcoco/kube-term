@@ -1,5 +1,5 @@
 use common::anyhow::Result;
-use common::{url_https_builder, PodSecrets};
+use common::{url_https_builder, ServiceAccountToken};
 use std::fmt;
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::handshake::client::Request;
@@ -69,22 +69,19 @@ impl PodExecParams {
 }
 
 pub async fn pod_exec_connector(
-    pod_secrets: &PodSecrets,
+    sat: &ServiceAccountToken,
     pod_exec_url: &PodExecUrl,
     pod_exec_params: &PodExecParams,
 ) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, anyhow::Error> {
     tracing::debug!("attempting connection");
-    let kubernetes_token = &pod_secrets.token;
-    let kubernetes_cacrt = pod_secrets.get_tls_connector()?;
+    let kubernetes_token = &sat.token;
+    let kubernetes_cacrt = sat.get_tls_connector()?;
     let websocket_url = format!("{}{}", pod_exec_url.format(), pod_exec_params.format());
-    let kube_domain = url_https_builder(&pod_secrets.kube_host, &pod_secrets.kube_port, None);
+    let kube_domain = url_https_builder(&sat.kube_host, &sat.kube_port, None);
 
     let request = Request::builder()
         .uri(websocket_url)
-        .header(
-            HOST,
-            format!("{}:{}", &pod_secrets.kube_host, &pod_secrets.kube_port),
-        )
+        .header(HOST, format!("{}:{}", &sat.kube_host, &sat.kube_port))
         .header("Origin", kube_domain)
         .header(
             SEC_WEBSOCKET_KEY,

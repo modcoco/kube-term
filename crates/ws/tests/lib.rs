@@ -9,7 +9,7 @@ mod tests {
     use common::reqwest::blocking::Client;
     use common::reqwest::header::AUTHORIZATION;
     use common::reqwest::Certificate;
-    use common::{url_https_builder, PodSecrets};
+    use common::{url_https_builder, ServiceAccountToken};
 
     #[test]
     fn it_works() {
@@ -26,7 +26,7 @@ mod tests {
 
     #[test]
     fn test_env() {
-        let ps = PodSecrets::new();
+        let ps = ServiceAccountToken::new();
         println!("{:?}", ps)
     }
 
@@ -37,7 +37,7 @@ mod tests {
         let kubernetes_service_host = "ubuntu".to_owned();
         let kubernetes_service_port = "6443".to_string();
 
-        let ps = PodSecrets::new();
+        let ps = ServiceAccountToken::new();
         let kubernetes_token = ps.token;
         let kubernetes_cert = Certificate::from_pem(&ps.cacrt)?;
 

@@ -13,7 +13,7 @@ use constants::*;
 use native_tls::TlsConnector;
 
 #[derive(Debug)]
-pub struct PodSecrets {
+pub struct ServiceAccountToken {
     pub kube_host: String,
     pub kube_port: String,
     pub cacrt: Vec<u8>,
@@ -21,13 +21,13 @@ pub struct PodSecrets {
     pub token: String,
 }
 
-impl Default for PodSecrets {
+impl Default for ServiceAccountToken {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl PodSecrets {
+impl ServiceAccountToken {
     pub fn new() -> Self {
         dotenv::dotenv().ok();
         let mut cacrt_path = CACRT_PATH;

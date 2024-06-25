@@ -1,4 +1,4 @@
-use common::PodSecrets;
+use common::ServiceAccountToken;
 use futures_util::{SinkExt as _, StreamExt as _};
 use logger::logger_trace::init_logger;
 use pod_exec::{pod_exec_connector, PodExecParams, PodExecPath, PodExecUrl};
@@ -14,10 +14,10 @@ async fn main() {
     init_logger();
     tracing::info!("init");
 
-    let pod_secrets = PodSecrets::new();
+    let sat = ServiceAccountToken::new();
     let pod_exec_url = PodExecUrl {
-        domain: String::from(&pod_secrets.kube_host),
-        port: String::from(&pod_secrets.kube_port),
+        domain: String::from(&sat.kube_host),
+        port: String::from(&sat.kube_port),
         path: PodExecPath {
             base_path: String::from("/api/v1"),
             namespace: String::from("/namespaces/default"),
@@ -36,7 +36,7 @@ async fn main() {
         follow: true,
     };
 
-    let conn = pod_exec_connector(&pod_secrets, &pod_exec_url, &pod_exec_params).await;
+    let conn = pod_exec_connector(&sat, &pod_exec_url, &pod_exec_params).await;
     match conn {
         Ok(mut ws_stream) => {
             let mut closed = false;
