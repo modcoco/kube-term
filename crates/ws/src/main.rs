@@ -1,27 +1,42 @@
-use common::anyhow::Result;
-use common::constants::COLON;
-use common::{url_https_builder, PodSecrets};
+use common::PodSecrets;
 use futures_util::{SinkExt as _, StreamExt as _};
 use logger::logger_trace::init_logger;
-use std::fmt;
+use pod_exec::{pod_exec_connector, PodExecParams, PodExecPath, PodExecUrl};
 use std::time::Duration;
 use tokio::net::TcpStream;
-use tokio_tungstenite::tungstenite::handshake::client::Request;
-use tokio_tungstenite::tungstenite::http::header::{
-    CONNECTION, HOST, SEC_WEBSOCKET_KEY, SEC_WEBSOCKET_PROTOCOL, SEC_WEBSOCKET_VERSION, UPGRADE,
-};
 use tokio_tungstenite::tungstenite::Message;
-use tokio_tungstenite::{
-    connect_async_tls_with_config, Connector, MaybeTlsStream, WebSocketStream,
-};
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+
+mod pod_exec;
 
 #[tokio::main]
 async fn main() {
     init_logger();
     tracing::info!("init");
 
-    let conn: std::prelude::v1::Result<WebSocketStream<MaybeTlsStream<TcpStream>>, anyhow::Error> =
-        connect().await;
+    let pod_secrets = PodSecrets::new();
+    let pod_exec_url = PodExecUrl {
+        domain: String::from(&pod_secrets.kube_host),
+        port: String::from(&pod_secrets.kube_port),
+        path: PodExecPath {
+            base_path: String::from("/api/v1"),
+            namespace: String::from("/namespaces/default"),
+            pod: String::from("/pods/web-term-559fdfcd89-gndr5"),
+            tail_path: String::from("/exec"),
+        },
+    };
+    let pod_exec_params = PodExecParams {
+        container: "web-term".to_string(),
+        stdin: true,
+        stdout: true,
+        stderr: true,
+        tty: true,
+        command: "ls".to_string(),
+        pretty: true,
+        follow: true,
+    };
+
+    let conn = pod_exec_connector(&pod_secrets, &pod_exec_url, &pod_exec_params).await;
     match conn {
         Ok(mut ws_stream) => {
             let mut closed = false;
@@ -74,122 +89,12 @@ async fn handle_websocket(
         }
     }
 
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    tokio::time::sleep(Duration::from_secs(10)).await;
     if !*is_closed {
         if let Err(e) = ws_stream.close(None).await {
             eprintln!("Failed to close WebSocket connection: {}", e);
         } else {
             println!("WebSocket connection closed");
-        }
-    }
-}
-
-#[derive(Debug)]
-struct UrlComponents {
-    domain: String,
-    port: String,
-    path: PathComponents,
-}
-
-impl UrlComponents {
-    fn format(&self) -> String {
-        format!("wss://{}:{}{}", self.domain, self.port, self.path)
-    }
-}
-
-#[derive(Debug)]
-struct PathComponents {
-    version: String,
-    namespace: String,
-    pod: String,
-}
-
-impl fmt::Display for PathComponents {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}{}{}", self.version, self.namespace, self.pod)
-    }
-}
-
-#[derive(Debug)]
-struct QueryParamsK8sTerm {
-    container: String,
-    stdin: bool,
-    stdout: bool,
-    stderr: bool,
-    tty: bool,
-    command: String,
-    pretty: bool,
-    follow: bool,
-}
-
-impl QueryParamsK8sTerm {
-    fn format(&self) -> String {
-        format!(
-            "?container={}&stdin={}&stdout={}&stderr={}&tty={}&command={}&pretty={}&follow={}",
-            self.container,
-            self.stdin,
-            self.stdout,
-            self.stderr,
-            self.tty,
-            self.command,
-            self.pretty,
-            self.follow
-        )
-    }
-}
-
-async fn connect() -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, anyhow::Error> {
-    tracing::debug!("attempting connection");
-    let ps = PodSecrets::new();
-    let kubernetes_token = &ps.token;
-
-    let components = UrlComponents {
-        domain: String::from(&ps.kube_host),
-        port: String::from(&ps.kube_port),
-        path: PathComponents {
-            version: String::from("/api/v1"),
-            namespace: String::from("/namespaces/default"),
-            pod: String::from("/pods/web-term-559fdfcd89-gndr5"),
-        },
-    };
-
-    let query_params = QueryParamsK8sTerm {
-        container: "web-term".to_string(),
-        stdin: true,
-        stdout: true,
-        stderr: true,
-        tty: true,
-        command: "ls".to_string(),
-        pretty: true,
-        follow: true,
-    };
-
-    let websocket_url = format!("{}/exec{}", components.format(), query_params.format());
-    let kube_domain = url_https_builder(&ps.kube_host, &ps.kube_port, "");
-    let request = Request::builder()
-        .uri(websocket_url)
-        .header(HOST, format!("{}{}{}", &ps.kube_host, COLON, &ps.kube_port))
-        .header("Origin", kube_domain)
-        .header(
-            SEC_WEBSOCKET_KEY,
-            tokio_tungstenite::tungstenite::handshake::client::generate_key(),
-        )
-        .header(CONNECTION, "Upgrade")
-        .header(UPGRADE, "websocket")
-        .header(SEC_WEBSOCKET_VERSION, "13")
-        .header("Authorization", format!("Bearer {}", kubernetes_token))
-        .header(SEC_WEBSOCKET_PROTOCOL, "channel.k8s.io")
-        .body(())?;
-
-    let connector = Connector::NativeTls(ps.get_tls_connector()?);
-    match connect_async_tls_with_config(request, None, true, Some(connector)).await {
-        Ok((conn, _)) => {
-            tracing::info!("Successfully connected!");
-            Ok(conn)
-        }
-        Err(err) => {
-            tracing::info!("Failed to connect: {}", err);
-            Err(Box::new(err).into())
         }
     }
 }

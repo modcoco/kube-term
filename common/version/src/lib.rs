@@ -34,6 +34,7 @@ impl PodSecrets {
         let mut namespace = NAMESPACE_PATH;
         let mut token_path = TOKEN_PATH;
 
+        // TODO: use default
         let kube_host =
             &std::env::var("KUBERNETES_SERVICE_HOST").unwrap_or_else(|_| String::default());
         let kube_port =
@@ -115,10 +116,17 @@ impl PodSecrets {
     }
 }
 
-pub fn url_https_builder(domain: &str, port: &str, path: &str) -> String {
-    [URL_HTTPS, domain, COLON, port, path].concat()
+pub fn url_https_builder(domain: &str, port: &str, path: Option<&str>) -> String {
+    base_http_builder(URL_HTTPS, domain, port, path)
 }
 
-pub fn url_http_builder(domain: &str, port: &str, path: &str) -> String {
-    [URL_HTTP, domain, COLON, port, path].concat()
+pub fn url_http_builder(domain: &str, port: &str, path: Option<&str>) -> String {
+    base_http_builder(URL_HTTP, domain, port, path)
+}
+
+fn base_http_builder(http_header: &str, domain: &str, port: &str, path: Option<&str>) -> String {
+    match path {
+        Some(p) => [http_header, domain, COLON, port, p].concat(),
+        None => [http_header, domain, COLON, port].concat(),
+    }
 }

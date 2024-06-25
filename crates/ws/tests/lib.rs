@@ -55,7 +55,7 @@ mod tests {
         let url = url_https_builder(
             &kubernetes_service_host,
             &kubernetes_service_port,
-            "/version",
+            Some("/version"),
         );
 
         let response = client.get(url).headers(headers).send()?;
