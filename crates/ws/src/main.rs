@@ -2,7 +2,6 @@ use common::ServiceAccountToken;
 use futures_util::{SinkExt as _, StreamExt as _};
 use logger::logger_trace::init_logger;
 use pod_exec::{pod_exec_connector, PodExecParams, PodExecPath, PodExecUrl};
-use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
@@ -87,12 +86,12 @@ async fn handle_websocket(
         }
     }
 
-    tokio::time::sleep(Duration::from_secs(10)).await;
-    if !*is_closed {
-        if let Err(e) = ws_stream.close(None).await {
-            tracing::error!("Failed to close WebSocket connection: {}", e);
-        } else {
-            tracing::info!("WebSocket connection closed");
-        }
-    }
+    // tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+    // if !*is_closed {
+    //     if let Err(e) = ws_stream.close(None).await {
+    //         tracing::error!("Failed to close WebSocket connection: {}", e);
+    //     } else {
+    //         tracing::info!("WebSocket connection closed");
+    //     }
+    // }
 }
