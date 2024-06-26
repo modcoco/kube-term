@@ -298,17 +298,16 @@ async fn handle_websocket(
             Some(input) = rx.recv() => {
                 tracing::info!("Sending message to WebSocket: {}", input.trim());
 
-                // Skip first character
                 let input = input.trim().chars().collect::<String>();
 
-                let input_base64 = base64::encode(&input);
+                // let input_base64 = base64::encode(&input);
 
-                tracing::info!("Sending input_base64 encoded message to WebSocket: {:?}", input_base64);
+                // tracing::info!("Sending input_base64 encoded message to WebSocket: {:?}", input_base64);
 
                 let mut buffer = vec![0x00];
-                buffer.extend_from_slice(input_base64.as_bytes());
+                buffer.extend_from_slice(input.as_bytes());
 
-                tracing::info!("Sending base64 encoded message to WebSocket: {:?}", buffer);
+                tracing::info!("------Sending base64 encoded message to WebSocket: {:?}", buffer);
 
                 let message = Message::Binary(buffer);
 
