@@ -297,8 +297,10 @@ async fn handle_websocket(
         tokio::select! {
             Some(input) = rx.recv() => {
                 let input = input.trim().chars().collect::<String>();
+
                 let mut buffer = vec![0x00];
                 buffer.extend_from_slice(input.as_bytes());
+                buffer.push(0x0A);
 
                 tracing::info!("------Sending message to WebSocket: {:?}", buffer);
                 let message = Message::Binary(buffer);
@@ -307,15 +309,13 @@ async fn handle_websocket(
                     *is_closed = true;
                 }
             },
-            // 从 WebSocket 接收消息并处理
             Some(Ok(msg)) = ws_stream.next() => {
                 match msg {
                     Message::Text(text) => {
                         tracing::info!("Received text message: {}", text);
                     }
                     Message::Binary(data) => {
-                        tracing::info!("Received binary message: {:?}", data);
-                        // 检查接收到的二进制消息是否包含前缀 0x01 或 0x02
+                        // tracing::info!("Received binary message: {:?}", data);
                         if !data.is_empty() {
                             match data[0] {
                                 0x01 => {
