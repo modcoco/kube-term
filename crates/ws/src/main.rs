@@ -31,7 +31,7 @@ async fn main() {
         stdout: true,
         stderr: true,
         tty: true,
-        command: "sh".to_string(),
+        command: "bash".to_string(),
         pretty: true,
         follow: true,
     };
@@ -296,21 +296,12 @@ async fn handle_websocket(
     loop {
         tokio::select! {
             Some(input) = rx.recv() => {
-                tracing::info!("Sending message to WebSocket: {}", input.trim());
-
                 let input = input.trim().chars().collect::<String>();
-
-                // let input_base64 = base64::encode(&input);
-
-                // tracing::info!("Sending input_base64 encoded message to WebSocket: {:?}", input_base64);
-
                 let mut buffer = vec![0x00];
                 buffer.extend_from_slice(input.as_bytes());
 
-                tracing::info!("------Sending base64 encoded message to WebSocket: {:?}", buffer);
-
+                tracing::info!("------Sending message to WebSocket: {:?}", buffer);
                 let message = Message::Binary(buffer);
-
                 if let Err(err) = ws_stream.send(message).await {
                     tracing::error!("Failed to send binary message to WebSocket: {}", err);
                     *is_closed = true;
