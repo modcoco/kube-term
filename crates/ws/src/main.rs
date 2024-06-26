@@ -36,7 +36,8 @@ async fn main() {
         follow: true,
     };
 
-    let conn = pod_exec_connector(&sat, &pod_exec_url, &pod_exec_params).await;
+    let conn: Result<WebSocketStream<MaybeTlsStream<TcpStream>>, common::anyhow::Error> =
+        pod_exec_connector(&sat, &pod_exec_url, &pod_exec_params).await;
     match conn {
         Ok(mut ws_stream) => {
             let mut closed = false;

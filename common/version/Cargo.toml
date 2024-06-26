@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1.33.0", features = ["full"] }
-axum = "0.7.5"
+axum = { version = "0.7.5", features = ["macros", "ws"] }
 log = "0.4.8"
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
@@ -17,7 +17,7 @@ reqwest = { version = "0.12.2", features = [
     "multipart",
     "stream",
     "blocking",
-    "rustls-tls"
+    "rustls-tls",
 ] }
 anyhow = { version = "1.0.79", features = ["std"] }
 thiserror = "1.0.56"
@@ -42,4 +42,3 @@ futures-util = { version = "0.3.29", default-features = false, features = [
     "sink",
     "std",
 ] }
-
