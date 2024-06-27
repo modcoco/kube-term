@@ -1,6 +1,7 @@
 use common::futures_util;
 use common::tokio::io::AsyncBufReadExt as _;
 use common::tokio::net::TcpStream;
+use common::tokio::sync::mpsc;
 use common::{tokio, tokio_tungstenite, tracing};
 use futures_util::{SinkExt as _, StreamExt as _};
 use kube::ServiceAccountToken;
@@ -36,23 +37,6 @@ async fn main() {
         follow: true,
     };
 
-    let conn: Result<WebSocketStream<MaybeTlsStream<TcpStream>>, common::anyhow::Error> =
-        pod_exec_connector(&sat, &pod_exec_url, &pod_exec_params).await;
-    match conn {
-        Ok(mut ws_stream) => {
-            let mut closed = false;
-            handle_websocket(&mut ws_stream, &mut closed).await;
-        }
-        Err(err) => {
-            println!("ERROR, {}", err)
-        }
-    };
-}
-
-async fn handle_websocket(
-    ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
-    is_closed: &mut bool,
-) {
     let (tx, mut rx) = tokio::sync::mpsc::channel(100);
 
     // Spawn a task to read from stdin and send to the channel
@@ -69,6 +53,24 @@ async fn handle_websocket(
         }
     });
 
+    let conn: Result<WebSocketStream<MaybeTlsStream<TcpStream>>, common::anyhow::Error> =
+        pod_exec_connector(&sat, &pod_exec_url, &pod_exec_params).await;
+    match conn {
+        Ok(mut ws_stream) => {
+            let mut closed = false;
+            handle_websocket(&mut ws_stream, &mut rx, &mut closed).await;
+        }
+        Err(err) => {
+            println!("ERROR, {}", err)
+        }
+    };
+}
+
+async fn handle_websocket(
+    ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
+    rx: &mut mpsc::Receiver<String>,
+    is_closed: &mut bool,
+) {
     loop {
         tokio::select! {
             Some(input) = rx.recv() => {
