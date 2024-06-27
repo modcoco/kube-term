@@ -4,7 +4,11 @@ use axum::{
     routing::get,
     Router,
 };
-use common::{axum, tokio, tracing};
+use common::{
+    axum::{self, extract::ws::Message},
+    tokio::{self, sync::mpsc},
+    tracing,
+};
 use logger::logger_trace::init_logger;
 
 #[tokio::main]
@@ -40,6 +44,38 @@ async fn handle_socket(mut socket: WebSocket) {
             // client disconnected
             tracing::info!("client disconnected, user has disconnect");
             return;
+        }
+    }
+}
+
+async fn _handle_socket_with_chennl(mut socket: WebSocket) {
+    // 创建异步消息通道
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<Message>(100);
+
+    while let Some(msg) = socket.recv().await {
+        let msg = if let Ok(msg) = msg {
+            tracing::info!("{:?}", &msg);
+            msg
+        } else {
+            // client disconnected
+            tracing::info!("Client disconnected, the msg isn't ok");
+            return;
+        };
+
+        // 将收到的消息发送到管道
+        if tx.send(msg.clone()).await.is_err() {
+            tracing::info!("Failed to send message to channel");
+            return;
+        }
+
+        // 从管道接收消息
+        if let Some(resp_msg) = rx.recv().await {
+            // 将从管道中获取的消息重新发送给客户端
+            if socket.send(resp_msg).await.is_err() {
+                // client disconnected
+                tracing::info!("Client disconnected, failed to send message");
+                return;
+            }
         }
     }
 }
