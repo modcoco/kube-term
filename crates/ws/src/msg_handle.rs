@@ -10,6 +10,8 @@ use futures_util::{SinkExt as _, StreamExt as _};
 use tokio_tungstenite::tungstenite::Message;
 
 const STD_INPUT_PREFIX: u8 = 0x00;
+const STD_OUTPUT_PREFIX_NORMAL: u8 = 0x01;
+const STD_OUTPUT_PREFIX_ERR: u8 = 0x02;
 const LINE_BREAK: u8 = 0x0A;
 
 pub async fn stdin_reader(tx: mpsc::Sender<String>) {
@@ -78,7 +80,7 @@ pub async fn handle_websocket(
 pub async fn handle_binary(data: Vec<u8>, tx_ws: &mpsc::Sender<String>) {
     if !data.is_empty() {
         match data[0] {
-            0x01 => {
+            STD_OUTPUT_PREFIX_NORMAL => {
                 // 处理标准输出消息
                 if let Ok(text) = String::from_utf8(data[1..].to_vec()) {
                     // tracing::info!("Received stdout: {}", text);
@@ -89,7 +91,7 @@ pub async fn handle_binary(data: Vec<u8>, tx_ws: &mpsc::Sender<String>) {
                     tracing::info!("Failed to convert stdout to text");
                 }
             }
-            0x02 => {
+            STD_OUTPUT_PREFIX_ERR => {
                 // 处理标准错误输出消息
                 if let Ok(text) = String::from_utf8(data[1..].to_vec()) {
                     tracing::info!("Received stderr: {}", text);
