@@ -6,3 +6,5 @@ edition = "2021"
 [dependencies]
 common.workspace = true
 logger.workspace = true
+kube.workspace = true
+pod_exec = { path = "../pod_exec" }
