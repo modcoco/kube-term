@@ -8,9 +8,9 @@ mod tests {
     use common::{anyhow, tracing, url_https_builder};
     use kube::ServiceAccountToken;
     use logger::logger_trace::init_logger;
+    use pod_exec::connector::{pod_exec_connector, PodExecParams, PodExecPath, PodExecUrl};
+    use pod_exec::msg_handle::{handle_websocket, stdin_reader};
     use tokio::sync::mpsc;
-    use ws::msg_handle::{handle_websocket, stdin_reader};
-    use ws::pod_exec::{pod_exec_connector, PodExecParams, PodExecPath, PodExecUrl};
 
     #[test]
     fn str_trimmed() {
