@@ -6,21 +6,20 @@ use axum::{
 };
 use common::{
     axum::{self, extract::ws::Message},
-    tokio, tracing,
+    tokio::{self, net::TcpListener, sync::mpsc},
+    tracing,
 };
 use logger::logger_trace::init_logger;
 
 #[tokio::main]
 async fn main() {
     init_logger();
-    // build our application with a single route
     let app = Router::new()
         .route("/", get(|| async { "Hello, World!" }))
         .route("/ws", get(handler));
 
     tracing::info!("start web server...");
-    // run our app with hyper, listening globally on port 3000
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
@@ -49,7 +48,7 @@ async fn handle_socket(mut socket: WebSocket) {
 
 async fn _handle_socket_with_chennl(mut socket: WebSocket) {
     // 创建异步消息通道
-    let (tx, mut rx) = tokio::sync::mpsc::channel::<Message>(100);
+    let (tx, mut rx) = mpsc::channel::<Message>(100);
 
     while let Some(msg) = socket.recv().await {
         let msg = if let Ok(msg) = msg {

@@ -4,13 +4,11 @@ mod tests {
     use common::reqwest::blocking::Client;
     use common::reqwest::header::AUTHORIZATION;
     use common::reqwest::Certificate;
-    use common::tokio::net::TcpStream;
-    use common::tokio::sync::mpsc;
+    use common::tokio;
     use common::{anyhow, tracing, url_https_builder};
-    use common::{tokio, tokio_tungstenite};
     use kube::ServiceAccountToken;
     use logger::logger_trace::init_logger;
-    use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+    use tokio::sync::mpsc;
     use ws::msg_handle::{handle_websocket, stdin_reader};
     use ws::pod_exec::{pod_exec_connector, PodExecParams, PodExecPath, PodExecUrl};
 
@@ -84,8 +82,7 @@ mod tests {
 
         stdin_reader(tx_cmd).await;
 
-        let conn: Result<WebSocketStream<MaybeTlsStream<TcpStream>>, common::anyhow::Error> =
-            pod_exec_connector(&sat, &pod_exec_url, &pod_exec_params).await;
+        let conn = pod_exec_connector(&sat, &pod_exec_url, &pod_exec_params).await;
         match conn {
             Ok(mut ws_stream) => {
                 let mut closed = false;
