@@ -9,6 +9,9 @@ use common::{
 use futures_util::{SinkExt as _, StreamExt as _};
 use tokio_tungstenite::tungstenite::Message;
 
+const STD_INPUT_PREFIX: u8 = 0x00;
+const LINE_BREAK: u8 = 0x0A;
+
 pub async fn stdin_reader(tx: mpsc::Sender<String>) {
     tokio::spawn(async move {
         let mut reader = BufReader::new(stdin());
@@ -35,9 +38,9 @@ pub async fn handle_websocket(
             Some(input) = rx.recv() => {
                 let input = input.trim().chars().collect::<String>();
 
-                let mut buffer = vec![0x00];
+                let mut buffer = vec![STD_INPUT_PREFIX];
                 buffer.extend_from_slice(input.as_bytes());
-                buffer.push(0x0A);
+                buffer.push(LINE_BREAK);
 
                 tracing::info!("------Sending message to WebSocket: {:?}", buffer);
                 let message = Message::Binary(buffer);
