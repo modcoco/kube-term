@@ -104,6 +104,16 @@ async fn handle_socket(mut socket: WebSocket) {
         }
     };
 
+    while let Some(resp_msg) = rx_kube.recv().await {
+        tracing::info!("Received from kubernetes: {}", resp_msg);
+        tracing::info!("{}", resp_msg);
+        let resp_msg = Message::Text(resp_msg);
+        if socket.send(resp_msg).await.is_err() {
+            // client disconnected
+            tracing::info!("Client disconnected, failed to send message");
+            return;
+        }
+    }
     while let Some(msg) = socket.recv().await {
         let msg = if let Ok(msg) = msg {
             // tracing::info!("{:?}", &msg);
@@ -118,17 +128,6 @@ async fn handle_socket(mut socket: WebSocket) {
         if tx_web.send(msg).await.is_err() {
             tracing::info!("Failed to send message to channel");
             return;
-        }
-
-        // 从管道接收消息并发送给客户端
-        while let Ok(resp_msg) = rx_kube.try_recv() {
-            tracing::info!("{}", resp_msg);
-            let resp_msg = Message::Text(resp_msg);
-            if socket.send(resp_msg).await.is_err() {
-                // client disconnected
-                tracing::info!("Client disconnected, failed to send message");
-                return;
-            }
         }
     }
 }
