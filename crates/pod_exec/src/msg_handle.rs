@@ -29,62 +29,37 @@ pub async fn stdin_reader(tx: mpsc::Sender<String>) {
     });
 }
 
-pub async fn handle_websocket_axum(
-    ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
-    rx: &mut mpsc::Receiver<axum::extract::ws::Message>,
-    tx_ws: &mpsc::Sender<String>,
-    is_closed: &mut bool,
-) {
-    loop {
-        tokio::select! {
-            Some(axum::extract::ws::Message::Text(input)) = rx.recv() => {
-                let input = input.trim().chars().collect::<String>();
-                let mut buffer = vec![STD_INPUT_PREFIX];
-                buffer.extend_from_slice(input.as_bytes());
-                buffer.push(LINE_BREAK);
+pub trait MessageHandler {
+    fn handle_message(self) -> String;
+}
 
-                // tracing::info!("------Sending message to WebSocket: {:?}", buffer);
-                let message = Message::Binary(buffer);
-                if let Err(err) = ws_stream.send(message).await {
-                    tracing::error!("Failed to send binary message to WebSocket: {}", err);
-                    *is_closed = true;
-                }
-            },
-            Some(Ok(msg)) = ws_stream.next() => {
-                match msg {
-                    Message::Text(text) => {
-                        tracing::info!("Received text message: {}", text);
-                    }
-                    Message::Binary(data) => {
-                        handle_binary(data, tx_ws).await;
-                    }
-                    Message::Ping(ping) => {
-                        tracing::info!("Received Ping message");
-                        let pong = Message::Pong(ping);
-                        if let Err(err) = ws_stream.send(pong).await {
-                            tracing::error!("Failed to send Pong: {}", err);
-                        }
-                    }
-                    Message::Close(_) => {
-                        tracing::info!("Received Close message");
-                        *is_closed = true;
-                    }
-                    _ => {}
-                }
-            },
+impl MessageHandler for axum::extract::ws::Message {
+    fn handle_message(self) -> String {
+        match self {
+            axum::extract::ws::Message::Text(text) => text,
+            _ => "".to_string(), // Other type todo
         }
     }
 }
 
-pub async fn handle_websocket(
+impl MessageHandler for String {
+    fn handle_message(self) -> String {
+        self
+    }
+}
+
+pub async fn handle_websocket<M>(
     ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
-    rx: &mut mpsc::Receiver<String>,
-    tx_ws: &mpsc::Sender<String>,
+    rx: &mut mpsc::Receiver<M>,
+    tx: &mpsc::Sender<String>,
     is_closed: &mut bool,
-) {
+) where
+    M: MessageHandler + 'static,
+{
     loop {
         tokio::select! {
             Some(input) = rx.recv() => {
+                let input: String = input.handle_message();
                 let input = input.trim().chars().collect::<String>();
 
                 let mut buffer = vec![STD_INPUT_PREFIX];
@@ -104,7 +79,7 @@ pub async fn handle_websocket(
                         tracing::info!("Received text message: {}", text);
                     }
                     Message::Binary(data) => {
-                        handle_binary(data, tx_ws).await;
+                        handle_binary(data, tx).await;
                     }
                     Message::Ping(ping) => {
                         tracing::info!("Received Ping message");
@@ -124,14 +99,14 @@ pub async fn handle_websocket(
     }
 }
 
-pub async fn handle_binary(data: Vec<u8>, tx_ws: &mpsc::Sender<String>) {
+pub async fn handle_binary(data: Vec<u8>, tx: &mpsc::Sender<String>) {
     if !data.is_empty() {
         match data[0] {
             STD_OUTPUT_PREFIX_NORMAL => {
                 // 处理标准输出消息
                 if let Ok(text) = String::from_utf8(data[1..].to_vec()) {
-                    tracing::info!("Received stdout: {}", text);
-                    if tx_ws.send(text).await.is_err() {
+                    // tracing::info!("Received stdout: {}", text);
+                    if tx.send(text).await.is_err() {
                         tracing::error!("Failed to send message to main");
                     }
                 } else {

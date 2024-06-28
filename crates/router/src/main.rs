@@ -13,7 +13,7 @@ use kube::ServiceAccountToken;
 use logger::logger_trace::init_logger;
 use pod_exec::{
     connector::{pod_exec_connector, PodExecParams, PodExecPath, PodExecUrl},
-    msg_handle::handle_websocket_axum,
+    msg_handle::handle_websocket,
 };
 
 #[tokio::main]
@@ -83,7 +83,7 @@ async fn handle_socket(mut socket: WebSocket) {
         Ok(mut ws_stream) => {
             let mut closed = false;
             tokio::spawn(async move {
-                handle_websocket_axum(&mut ws_stream, &mut rx_web, &tx_ws, &mut closed).await;
+                handle_websocket(&mut ws_stream, &mut rx_web, &tx_ws, &mut closed).await;
             });
         }
         Err(err) => {
@@ -93,22 +93,22 @@ async fn handle_socket(mut socket: WebSocket) {
 
     while let Some(msg) = socket.recv().await {
         let msg = if let Ok(msg) = msg {
-            tracing::info!("{:?}", &msg);
+            // tracing::info!("{:?}", &msg);
             msg
         } else {
             // client disconnected
             tracing::info!("Client disconnected, the msg isn't ok");
             return;
         };
-
         // 将收到的消息发送到管道
-        if tx_web.send(msg.clone()).await.is_err() {
+        if tx_web.send(msg).await.is_err() {
             tracing::info!("Failed to send message to channel");
             return;
         }
 
         // 从管道接收消息
         if let Some(resp_msg) = rx_ws.recv().await {
+            tracing::info!("{}", resp_msg);
             // 将从管道中获取的消息重新发送给客户端
             let resp_msg = Message::Text(resp_msg);
             if socket.send(resp_msg).await.is_err() {
