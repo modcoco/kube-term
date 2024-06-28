@@ -43,10 +43,23 @@ async fn _handle_socket(mut socket: WebSocket) {
             return;
         };
 
-        if socket.send(msg).await.is_err() {
-            // client disconnected
-            tracing::info!("client disconnected, user has disconnect");
-            return;
+        // Process the message and decide to send multiple responses
+        if let Message::Text(text) = msg {
+            let responses = vec![
+                Message::Text(format!("Received: {}", text)),
+                Message::Text("This is another message".into()),
+                Message::Text("And yet another message".into()),
+            ];
+
+            for response in responses {
+                if socket.send(response).await.is_err() {
+                    // client disconnected
+                    tracing::info!("client disconnected, user has disconnected");
+                    return;
+                }
+            }
+        } else {
+            // Handle other message types if needed
         }
     }
 }
@@ -76,14 +89,14 @@ async fn handle_socket(mut socket: WebSocket) {
 
     // 创建异步消息通道
     let (tx_web, mut rx_web) = mpsc::channel::<Message>(100);
-    let (tx_ws, mut rx_ws) = mpsc::channel(100);
+    let (tx_kube, mut rx_kube) = mpsc::channel(100);
 
     let conn = pod_exec_connector(&sat, &pod_exec_url, &pod_exec_params).await;
     match conn {
         Ok(mut ws_stream) => {
             let mut closed = false;
             tokio::spawn(async move {
-                handle_websocket(&mut ws_stream, &mut rx_web, &tx_ws, &mut closed).await;
+                handle_websocket(&mut ws_stream, &mut rx_web, &tx_kube, &mut closed).await;
             });
         }
         Err(err) => {
@@ -100,16 +113,16 @@ async fn handle_socket(mut socket: WebSocket) {
             tracing::info!("Client disconnected, the msg isn't ok");
             return;
         };
+
         // 将收到的消息发送到管道
         if tx_web.send(msg).await.is_err() {
             tracing::info!("Failed to send message to channel");
             return;
         }
 
-        // 从管道接收消息
-        if let Some(resp_msg) = rx_ws.recv().await {
+        // 从管道接收消息并发送给客户端
+        while let Ok(resp_msg) = rx_kube.try_recv() {
             tracing::info!("{}", resp_msg);
-            // 将从管道中获取的消息重新发送给客户端
             let resp_msg = Message::Text(resp_msg);
             if socket.send(resp_msg).await.is_err() {
                 // client disconnected

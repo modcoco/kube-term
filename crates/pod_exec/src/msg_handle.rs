@@ -66,7 +66,7 @@ pub async fn handle_websocket<M>(
                 buffer.extend_from_slice(input.as_bytes());
                 buffer.push(LINE_BREAK);
 
-                tracing::info!("------Sending message to WebSocket: {:?}", buffer);
+                tracing::info!("=> sending message to kube: {:?}", buffer);
                 let message = Message::Binary(buffer);
                 if let Err(err) = ws_stream.send(message).await {
                     tracing::error!("Failed to send binary message to WebSocket: {}", err);

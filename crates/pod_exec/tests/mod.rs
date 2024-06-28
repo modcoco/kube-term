@@ -95,7 +95,7 @@ mod tests {
             }
         };
         while let Some(msg) = rx_ws.recv().await {
-            tracing::info!("Received from ws: {}", msg);
+            tracing::info!("Received from kubernetes: {}", msg);
         }
     }
 }
