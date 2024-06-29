@@ -59,7 +59,7 @@ pub async fn handle_websocket<M>(
     loop {
         tokio::select! {
             Some(input) = rx.recv() => {
-                let input: String = input.handle_message();
+                let input: String = format!(" #kubeterm;{}",input.handle_message());
                 let input = input.trim().chars().collect::<String>();
 
                 let mut buffer = vec![STD_INPUT_PREFIX];
@@ -105,7 +105,11 @@ pub async fn handle_binary(data: Vec<u8>, tx: &mpsc::Sender<String>) {
             STD_OUTPUT_PREFIX_NORMAL => {
                 // 处理标准输出消息
                 if let Ok(text) = String::from_utf8(data[1..].to_vec()) {
-                    // tracing::info!("Received stdout: {}", text);
+                    tracing::info!("Received stdout: {}", text);
+                    // remove echo
+                    if text.starts_with("#kubeterm;") {
+                        tracing::info!("echo");
+                    }
                     if tx.send(text).await.is_err() {
                         tracing::error!("Failed to send message to main");
                     }
