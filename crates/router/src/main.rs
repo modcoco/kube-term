@@ -129,7 +129,7 @@ async fn handle_socket(mut socket: WebSocket) {
 }
 
 async fn handler_kube_recv(kube_msg: &str, socket: &mut WebSocket) {
-    tracing::info!("Received from kubernetes: {}", kube_msg);
+    // tracing::info!("Received from kubernetes: {}", kube_msg);
     let kube_msg = Message::Text(kube_msg.to_owned());
     if socket.send(kube_msg).await.is_err() {
         // client disconnected
