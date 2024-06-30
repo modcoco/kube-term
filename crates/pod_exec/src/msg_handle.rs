@@ -21,7 +21,7 @@ pub async fn stdin_reader(tx: mpsc::Sender<String>) {
         let mut line = String::new();
 
         while reader.read_line(&mut line).await.is_ok() {
-            // tracing::info!("Read line from stdin: {}", line.trim());
+            tracing::debug!("Read line from stdin: {}", line.trim());
             if tx.send(line.clone()).await.is_err() {
                 break;
             }
@@ -54,11 +54,11 @@ pub async fn handle_websocket<M>(
     rx: &mut mpsc::Receiver<M>,
     tx: &mpsc::Sender<String>,
     is_closed: &mut bool,
+    debug: Option<bool>,
 ) where
     M: MessageHandler + 'static,
 {
     let mut step = Default::default();
-    let mut cmd: Vec<u8> = Default::default();
     loop {
         tokio::select! {
             Some(input) = rx.recv() => {
@@ -70,7 +70,6 @@ pub async fn handle_websocket<M>(
                 buffer.extend_from_slice(input.as_bytes());
                 // buffer.push(CR);
                 buffer.push(LF);
-                cmd.clone_from(&buffer);
 
                 // tracing::info!("=> sending message to kube: {:?}", buffer);
                 let message = Message::Binary(buffer);
@@ -85,7 +84,7 @@ pub async fn handle_websocket<M>(
                         tracing::info!("Received text message: {}", text);
                     }
                     Message::Binary(data) => {
-                        let is_resv_msg = handle_binary(data, tx, step).await;
+                        let is_resv_msg = handle_binary(data, tx, step, debug).await;
                         if is_resv_msg {
                             step += 1;
                         }
@@ -108,33 +107,30 @@ pub async fn handle_websocket<M>(
     }
 }
 
-pub async fn handle_binary(data: Vec<u8>, tx: &mpsc::Sender<String>, step: i32) -> bool {
+pub async fn handle_binary(
+    data: Vec<u8>,
+    tx: &mpsc::Sender<String>,
+    step: i32,
+    cmd_debug: Option<bool>,
+) -> bool {
     if !data.is_empty() {
         match data[0] {
             STD_OUTPUT_PREFIX_NORMAL => {
-                // tracing::info!("step {}, received org: {:?}", step, data[1..].to_vec());
-                let mut msg_ascii: Vec<u8> = data[1..].to_vec();
-                // \x1b[?2004l\r
-                // 13, 10, 27, 91, 63, 50, 48, 48, 52, 108, 13
-                if step == 0 {
-                    if let Some(pos) = msg_ascii
-                        .windows(11)
-                        .position(|window| window == [13, 10, 27, 91, 63, 50, 48, 48, 52, 108, 13])
-                    {
-                        msg_ascii = msg_ascii.split_off(pos + 11);
-                    };
-                    // tracing::info!("step {}, received fix: {:?}", step, msg_ascii);
-                }
-                // \x1B[?2004h
-                // 27, 91, 63, 50, 48, 48, 52, 104
-                if msg_ascii.starts_with(&[27, 91, 63, 50, 48, 48, 52, 104]) {
-                    // tracing::info!("remove colir");
-                    msg_ascii = msg_ascii[8..].to_vec();
-                }
+                tracing::debug!("step {}, received org: {:?}", step, data[1..].to_vec());
+                let msg_ascii = data[1..].to_vec();
+
+                let msg_ascii = if let Some(debug) = cmd_debug {
+                    match debug {
+                        true => local_dev_cmd_auxiliary_display(step, msg_ascii),
+                        false => msg_ascii,
+                    }
+                } else {
+                    msg_ascii
+                };
 
                 if !msg_ascii.is_empty() {
                     if let Ok(text) = String::from_utf8(msg_ascii) {
-                        // tracing::info!("step {}, received stdout: {}", step, text);
+                        tracing::debug!("step {}, received stdout: {}", step, text);
                         if tx.send(text).await.is_err() {
                             tracing::error!("Failed to send message to main");
                         };
@@ -159,4 +155,25 @@ pub async fn handle_binary(data: Vec<u8>, tx: &mpsc::Sender<String>, step: i32) 
         tracing::info!("Received empty binary message");
         false
     }
+}
+
+fn local_dev_cmd_auxiliary_display(step: i32, mut msg_ascii: Vec<u8>) -> Vec<u8> {
+    // \x1b[?2004l\r
+    // 13, 10, 27, 91, 63, 50, 48, 48, 52, 108, 13
+    if step == 0 {
+        if let Some(pos) = msg_ascii
+            .windows(11)
+            .position(|window| window == [13, 10, 27, 91, 63, 50, 48, 48, 52, 108, 13])
+        {
+            msg_ascii = msg_ascii.split_off(pos + 11);
+        };
+        // tracing::info!("step {}, received fix: {:?}", step, msg_ascii);
+    }
+    // \x1B[?2004h
+    // 27, 91, 63, 50, 48, 48, 52, 104
+    if msg_ascii.starts_with(&[27, 91, 63, 50, 48, 48, 52, 104]) {
+        tracing::debug!("remove colir");
+        msg_ascii = msg_ascii[8..].to_vec();
+    }
+    msg_ascii
 }

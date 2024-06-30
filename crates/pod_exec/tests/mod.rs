@@ -87,7 +87,8 @@ mod tests {
             Ok(mut ws_stream) => {
                 let mut closed = false;
                 tokio::spawn(async move {
-                    handle_websocket(&mut ws_stream, &mut rx_cmd, &tx_ws, &mut closed).await;
+                    handle_websocket(&mut ws_stream, &mut rx_cmd, &tx_ws, &mut closed, Some(true))
+                        .await;
                 });
             }
             Err(err) => {

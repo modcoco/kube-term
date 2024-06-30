@@ -32,38 +32,6 @@ async fn handler(ws: WebSocketUpgrade) -> Response {
     ws.on_upgrade(handle_socket)
 }
 
-async fn _handle_socket(mut socket: WebSocket) {
-    while let Some(msg) = socket.recv().await {
-        let msg = if let Ok(msg) = msg {
-            tracing::info!("{:?}", &msg);
-            msg
-        } else {
-            // client disconnected
-            tracing::info!("client disconnected, the msg is't ok");
-            return;
-        };
-
-        // Process the message and decide to send multiple responses
-        if let Message::Text(text) = msg {
-            let responses = vec![
-                Message::Text(format!("Received: {}", text)),
-                Message::Text("This is another message".into()),
-                Message::Text("And yet another message".into()),
-            ];
-
-            for response in responses {
-                if socket.send(response).await.is_err() {
-                    // client disconnected
-                    tracing::info!("client disconnected, user has disconnected");
-                    return;
-                }
-            }
-        } else {
-            // Handle other message types if needed
-        }
-    }
-}
-
 async fn handle_socket(mut socket: WebSocket) {
     let sat = ServiceAccountToken::new();
     let pod_exec_url = PodExecUrl {
@@ -87,7 +55,6 @@ async fn handle_socket(mut socket: WebSocket) {
         follow: true,
     };
 
-    // 创建异步消息通道
     let (tx_web, mut rx_web) = mpsc::channel::<Message>(100);
     let (tx_kube, mut rx_kube) = mpsc::channel(100);
 
@@ -96,7 +63,7 @@ async fn handle_socket(mut socket: WebSocket) {
         Ok(mut ws_stream) => {
             let mut closed = false;
             tokio::spawn(async move {
-                handle_websocket(&mut ws_stream, &mut rx_web, &tx_kube, &mut closed).await;
+                handle_websocket(&mut ws_stream, &mut rx_web, &tx_kube, &mut closed, None).await;
             });
         }
         Err(err) => {
@@ -116,7 +83,7 @@ async fn handle_socket(mut socket: WebSocket) {
                     return;
                 };
 
-                // 将收到的kube消息发送到web
+                // send kubemsg to web
                 if tx_web.send(client_msg).await.is_err() {
                     tracing::info!("Failed to send message to channel");
                 }
