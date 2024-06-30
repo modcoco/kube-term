@@ -10,15 +10,12 @@ use common::{
     tracing,
 };
 use kube::ServiceAccountToken;
-use logger::logger_trace::init_logger;
 use pod_exec::{
     connector::{pod_exec_connector, PodExecParams, PodExecPath, PodExecUrl},
     msg_handle::handle_websocket,
 };
 
-#[tokio::main]
-async fn main() {
-    init_logger();
+pub async fn init_router() {
     let app = Router::new()
         .route("/", get(|| async { "Hello, World!" }))
         .route("/ws", get(handler));
@@ -89,17 +86,12 @@ async fn handle_socket(mut socket: WebSocket) {
                 }
             },
             Some(kube_msg) = rx_kube.recv() => {
-                handler_kube_recv(&kube_msg, &mut socket).await;
+                tracing::debug!("Received from kubernetes: {}", kube_msg);
+                let kube_msg = Message::Text(kube_msg.to_owned());
+                if socket.send(kube_msg).await.is_err() {
+                    tracing::info!("Client disconnected, failed to send message");
+                }
             }
         }
-    }
-}
-
-async fn handler_kube_recv(kube_msg: &str, socket: &mut WebSocket) {
-    // tracing::info!("Received from kubernetes: {}", kube_msg);
-    let kube_msg = Message::Text(kube_msg.to_owned());
-    if socket.send(kube_msg).await.is_err() {
-        // client disconnected
-        tracing::info!("Client disconnected, failed to send message");
     }
 }
