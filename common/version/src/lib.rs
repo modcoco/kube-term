@@ -1,5 +1,6 @@
 pub use anyhow;
 pub use axum;
+pub use base64;
 pub use chrono;
 pub use dotenv;
 pub use futures_util;
