@@ -6,6 +6,7 @@ pub use futures_util;
 pub use native_tls;
 pub use reqwest;
 pub use rustls_pemfile;
+pub use serde;
 pub use sqlx;
 pub use tokio;
 pub use tokio_tungstenite;

@@ -1,3 +1,6 @@
+use axum::extract::Extension;
+use axum::extract::Query;
+use common::axum;
 use common::chrono::Local;
 use common::tokio::{self, time::Instant};
 use std::sync::Arc;
@@ -5,6 +8,7 @@ use tracing::Level;
 use tracing_subscriber::fmt::{format::Writer, time::FormatTime};
 use tracing_subscriber::layer::SubscriberExt as _;
 use tracing_subscriber::util::SubscriberInitExt as _;
+use tracing_subscriber::EnvFilter;
 
 pub type ReloadLogLevelHandle =
     tracing_subscriber::reload::Handle<tracing_subscriber::EnvFilter, tracing_subscriber::Registry>;
@@ -75,22 +79,22 @@ fn main() {
 }
 
 // WEB
-// #[derive(serde::Deserialize)]
-// pub struct LevelFlag {
-//     level: String,
-// }
-// pub async fn change_log_level(
-//     Query(flag): Query<LevelFlag>,
-//     Extension(reload_handle): Extension<logger::ReloadLogLevelHandle>,
-// ) -> String {
-//     match flag.level.parse::<logger::EnvFilter>() {
-//         Ok(env_filter) => {
-//             reload_handle.modify(|filter| *filter = env_filter).unwrap();
-//             "ok".to_string()
-//         }
-//         Err(err) => err.to_string(),
-//     }
-// }
+#[derive(serde::Deserialize)]
+pub struct LevelFlag {
+    level: String,
+}
+pub async fn change_log_level(
+    Query(flag): Query<LevelFlag>,
+    Extension(reload_handle): Extension<ReloadLogLevelHandle>,
+) -> String {
+    match flag.level.parse::<EnvFilter>() {
+        Ok(env_filter) => {
+            reload_handle.modify(|filter| *filter = env_filter).unwrap();
+            "ok".to_string()
+        }
+        Err(err) => err.to_string(),
+    }
+}
 
 // CMD
 // export RUST_LOG=debug
