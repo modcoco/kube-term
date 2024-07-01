@@ -79,7 +79,6 @@ async fn handle_socket(mut socket: WebSocket) {
                     tracing::info!("Received from client: {:?}", client_msg);
                     client_msg
                 } else {
-                    // client disconnected
                     tracing::info!("Client disconnected, the msg isn't ok");
                     return;
                 };
