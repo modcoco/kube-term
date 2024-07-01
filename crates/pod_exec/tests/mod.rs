@@ -4,8 +4,8 @@ mod tests {
     use common::reqwest::blocking::Client;
     use common::reqwest::header::AUTHORIZATION;
     use common::reqwest::Certificate;
-    use common::tokio;
     use common::{anyhow, tracing, url_https_builder};
+    use common::{base64, tokio};
     use kube::ServiceAccountToken;
     use logger::logger_trace::init_logger;
     use pod_exec::connector::{pod_exec_connector, PodExecParams, PodExecPath, PodExecUrl};
@@ -23,6 +23,19 @@ mod tests {
     fn test_env() {
         let ps = ServiceAccountToken::new();
         println!("{:?}", ps)
+    }
+
+    //
+    //
+    #[test]
+    fn test_base64_decode() {
+        let input = "4eyJXaWR0aCI6ODAsIkhlaWdodCI6MjR9";
+        // let input = "0DQ==";
+        let input: String = input.chars().skip(1).collect();
+        let input =
+            base64::Engine::decode(&base64::prelude::BASE64_STANDARD, input).unwrap_or_default();
+
+        println!("{:?}", input)
     }
 
     #[test]

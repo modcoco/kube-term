@@ -1,7 +1,7 @@
 use common::tokio::net::TcpStream;
 use common::tokio::sync::mpsc;
 use common::tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
-use common::{axum, futures_util, tokio, tracing};
+use common::{axum, base64, futures_util, tokio, tracing};
 use common::{
     tokio::io::{stdin, AsyncBufReadExt as _, BufReader},
     tokio_tungstenite,
@@ -63,15 +63,31 @@ pub async fn handle_websocket<M>(
         tokio::select! {
             Some(input) = rx.recv() => {
                 step = 0;
-                let input: String = input.handle_message();
-                let input = input.trim().chars().collect::<String>();
-
+                let mut input: String = input.handle_message();
                 let mut buffer = vec![STD_INPUT_PREFIX];
-                buffer.extend_from_slice(input.as_bytes());
-                // buffer.push(CR);
-                buffer.push(LF);
 
-                // tracing::info!("=> sending message to kube: {:?}", buffer);
+                if let Some(debug) = debug {
+                    match debug {
+                        true => {
+                            let input = input.trim().chars().collect::<String>();
+                            let input = input.as_bytes();
+                            buffer.extend_from_slice(input);
+                            // buffer.push(CR);
+                            buffer.push(LF);
+                        },
+                        false => {
+                            input = input.chars().skip(1).collect();
+                            let input = base64::Engine::decode(&base64::prelude::BASE64_STANDARD, input).unwrap_or_default();
+                            buffer.extend_from_slice(&input);
+                        },
+                    }
+                } else {
+                    input = input.chars().skip(1).collect();
+                    let input = base64::Engine::decode(&base64::prelude::BASE64_STANDARD, input).unwrap_or_default();
+                    buffer.extend_from_slice(&input);
+                }
+
+                tracing::info!("=> sending message to kube: {:?}", buffer);
                 let message = Message::Binary(buffer);
                 if let Err(err) = ws_stream.send(message).await {
                     tracing::error!("Failed to send binary message to WebSocket: {}", err);

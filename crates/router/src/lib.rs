@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use axum::{
     extract::{ws::WebSocket, WebSocketUpgrade},
     response::Response,
@@ -18,16 +20,17 @@ use pod_exec::{
 
 pub async fn init_router() {
     let app = Router::new()
-        .route("/", get(|| async { "Hello, World!" }))
-        .route("/ws", get(handler));
+        // .route("/", get(|| async { "Hello, World!" }))
+        .route("/", get(handler));
 
     tracing::info!("start web server...");
-    let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
 async fn handler(ws: WebSocketUpgrade) -> Response {
-    ws.on_upgrade(handle_socket)
+    let protocols: Vec<Cow<'static, str>> = vec![Cow::Borrowed("echo-protocol")];
+    ws.protocols(protocols).on_upgrade(handle_socket)
 }
 
 async fn handle_socket(mut socket: WebSocket) {
