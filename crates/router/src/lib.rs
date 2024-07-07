@@ -8,7 +8,7 @@ use axum::{
 };
 use common::{
     axum::{self, extract::ws::Message},
-    base64,
+    // base64,
     tokio::{self, net::TcpListener, sync::mpsc},
     tracing,
 };
@@ -51,7 +51,8 @@ async fn handle_socket(mut socket: WebSocket) {
         stdout: true,
         stderr: true,
         tty: true,
-        command: "bash".to_string(),
+        command: "env&env=TERM%3Dxterm&command=COLUMNS%3D800&command=LINES%3D10&command=bash"
+            .to_string(),
         pretty: true,
         follow: true,
     };
@@ -89,7 +90,7 @@ async fn handle_socket(mut socket: WebSocket) {
             },
             Some(kube_msg) = rx_kube.recv() => {
                 tracing::debug!("Received from kubernetes: {}", kube_msg);
-                let kube_msg = base64::Engine::encode(&base64::prelude::BASE64_STANDARD, kube_msg);
+                // let kube_msg = base64::Engine::encode(&base64::prelude::BASE64_STANDARD, kube_msg);
                 let kube_msg = Message::Text(format!("1{}", kube_msg));
                 if socket.send(kube_msg).await.is_err() {
                     tracing::info!("Client disconnected, failed to send message");

@@ -145,14 +145,19 @@ pub async fn handle_binary(
                 };
 
                 if !msg_ascii.is_empty() {
-                    if let Ok(text) = String::from_utf8(msg_ascii) {
-                        tracing::debug!("step {}, received stdout: {}", step, text);
-                        if tx.send(text).await.is_err() {
-                            tracing::error!("Failed to send message to main");
-                        };
-                    } else {
-                        tracing::info!("Failed to convert stdout to text");
-                    }
+                    let kube_msg = base64::Engine::encode(&base64::prelude::BASE64_STANDARD, data);
+                    if tx.send(kube_msg).await.is_err() {
+                        tracing::error!("Failed to send message to main");
+                    };
+
+                    // if let Ok(text) = String::from_utf8(msg_ascii) {
+                    //     tracing::debug!("step {}, received stdout: {}", step, text);
+                    //     if tx.send(text).await.is_err() {
+                    //         tracing::error!("Failed to send message to main");
+                    //     };
+                    // } else {
+                    //     tracing::info!("Failed to convert stdout to text");
+                    // }
                 }
             }
             STD_OUTPUT_PREFIX_ERR => {
