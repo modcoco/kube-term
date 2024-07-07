@@ -20,7 +20,7 @@ use pod_exec::{
 
 pub async fn init_router() {
     let app = Router::new()
-        // .route("/", get(|| async { "Hello, World!" }))
+        .route("/health", get(|| async { "Hello, World!" }))
         .route("/", get(handler));
 
     tracing::info!("start web server...");
