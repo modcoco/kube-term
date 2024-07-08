@@ -64,6 +64,7 @@ pub async fn handle_websocket<M>(
             Some(input) = rx.recv() => {
                 step = 0;
                 let mut input: String = input.handle_message();
+                tracing::info!("{}", input);
                 let mut buffer = vec![STD_INPUT_PREFIX];
 
                 if let Some(debug) = debug {
