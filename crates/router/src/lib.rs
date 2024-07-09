@@ -41,7 +41,7 @@ async fn handle_socket(mut socket: WebSocket) {
         path: PodExecPath {
             base_path: String::from("/api/v1"),
             namespace: String::from("/namespaces/default"),
-            pod: String::from("/pods/web-term-559fdfcd89-gndr5"),
+            pod: String::from("/pods/web-term-559fdfcd89-sck7p"),
             tail_path: String::from("/exec"),
         },
     };

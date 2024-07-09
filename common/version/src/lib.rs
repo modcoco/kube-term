@@ -8,6 +8,7 @@ pub use native_tls;
 pub use reqwest;
 pub use rustls_pemfile;
 pub use serde;
+pub use serde_json;
 pub use sqlx;
 pub use tokio;
 pub use tokio_tungstenite;

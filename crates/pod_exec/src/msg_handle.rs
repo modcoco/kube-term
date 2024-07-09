@@ -1,12 +1,13 @@
 use common::tokio::net::TcpStream;
 use common::tokio::sync::mpsc;
 use common::tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
-use common::{axum, base64, futures_util, tokio, tracing};
+use common::{axum, base64, futures_util, serde_json, tokio, tracing};
 use common::{
     tokio::io::{stdin, AsyncBufReadExt as _, BufReader},
     tokio_tungstenite,
 };
 use futures_util::{SinkExt as _, StreamExt as _};
+use serde::{Deserialize, Serialize};
 use tokio_tungstenite::tungstenite::Message;
 
 const STD_INPUT_PREFIX: u8 = 0x00;
@@ -14,6 +15,27 @@ const STD_OUTPUT_PREFIX_NORMAL: u8 = 0x01;
 const STD_OUTPUT_PREFIX_ERR: u8 = 0x02;
 // const CR: u8 = 0x0D;
 const LF: u8 = 0x0A;
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Data {
+    rows: u32,
+    columns: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ResizeMessage {
+    r#type: String,
+    data: Data,
+}
+
+impl ResizeMessage {
+    fn to_stty_command(&self) -> String {
+        format!(
+            "stty rows {} columns {} > /dev/null 2>&1",
+            self.data.rows, self.data.columns
+        )
+    }
+}
 
 pub async fn stdin_reader(tx: mpsc::Sender<String>) {
     tokio::spawn(async move {
@@ -64,7 +86,27 @@ pub async fn handle_websocket<M>(
             Some(input) = rx.recv() => {
                 step = 0;
                 let mut input: String = input.handle_message();
-                tracing::info!("{}", input);
+
+                if input.starts_with('9') {
+                   tracing::info!("{}", input);
+                   let mut resize = input.clone();
+                   if !resize.is_empty() {
+                        resize.remove(0);
+                    }
+                   let resize = base64::Engine::decode(&base64::prelude::BASE64_STANDARD, resize).unwrap_or_default();
+                   let result: String = resize.iter()
+                      .map(|&c| c as char)
+                      .collect();
+                   let message: ResizeMessage = serde_json::from_str(&result).expect("JSON was not well-formatted");
+                   tracing::info!("message {:?}", message);
+                   let msg = message.to_stty_command();
+                   let mut ascii_values: Vec<u8> = msg.chars().map(|c| c as u8).collect();
+                   ascii_values.push(LF);
+                   let b_msg = base64::Engine::encode(&base64::prelude::BASE64_STANDARD, ascii_values);
+
+                   input = format!("1{}", b_msg);
+                }
+
                 let mut buffer = vec![STD_INPUT_PREFIX];
 
                 if let Some(debug) = debug {
