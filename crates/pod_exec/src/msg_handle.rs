@@ -18,8 +18,8 @@ const LF: u8 = 0x0A;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Data {
-    rows: u32,
-    columns: u32,
+    rows: u16,
+    columns: u16,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -28,13 +28,12 @@ struct ResizeMessage {
     data: Data,
 }
 
-impl ResizeMessage {
-    fn to_stty_command(&self) -> String {
-        format!(
-            "stty rows {} columns {} > /dev/null 2>&1",
-            self.data.rows, self.data.columns
-        )
-    }
+// e.g. {"Width":80,"Height":24}
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct TerminalSize {
+    width: u16,
+    height: u16,
 }
 
 pub async fn stdin_reader(tx: mpsc::Sender<String>) {
@@ -73,20 +72,22 @@ impl MessageHandler for String {
 
 pub async fn handle_websocket<M>(
     ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
-    rx: &mut mpsc::Receiver<M>,
-    tx: &mpsc::Sender<String>,
+    rx_web: &mut mpsc::Receiver<M>,
+    tx_kube: &mpsc::Sender<String>,
     is_closed: &mut bool,
     debug: Option<bool>,
 ) where
     M: MessageHandler + 'static,
 {
+    let mut chat_no: i32 = Default::default();
     let mut step = Default::default();
     loop {
         tokio::select! {
-            Some(input) = rx.recv() => {
+            Some(input) = rx_web.recv() => {
                 step = 0;
+                chat_no += 1;
                 let mut input: String = input.handle_message();
-
+                let mut resize_msg: String = Default::default();
                 if input.starts_with('9') {
                    tracing::info!("{}", input);
                    let mut resize = input.clone();
@@ -99,15 +100,18 @@ pub async fn handle_websocket<M>(
                       .collect();
                    let message: ResizeMessage = serde_json::from_str(&result).expect("JSON was not well-formatted");
                    tracing::info!("message {:?}", message);
-                   let msg = message.to_stty_command();
-                   let mut ascii_values: Vec<u8> = msg.chars().map(|c| c as u8).collect();
-                   ascii_values.push(LF);
-                   let b_msg = base64::Engine::encode(&base64::prelude::BASE64_STANDARD, ascii_values);
-
-                   input = format!("1{}", b_msg);
+                    // 创建一个 TerminalSize 实例并赋值
+                    let size = TerminalSize {
+                        width: message.data.columns,
+                        height: message.data.rows,
+                    };
+                    // 将 TerminalSize 实例转换为 JSON 字符串
+                    let size_json = serde_json::to_string(&size).expect("Failed to serialize");
+                    tracing::info!("{}",size_json);
+                   resize_msg = size_json;
                 }
 
-                let mut buffer = vec![STD_INPUT_PREFIX];
+                let mut buffer = vec![];
 
                 if let Some(debug) = debug {
                     match debug {
@@ -119,15 +123,24 @@ pub async fn handle_websocket<M>(
                             buffer.push(LF);
                         },
                         false => {
+                            buffer.push(STD_INPUT_PREFIX);
                             input = input.chars().skip(1).collect();
                             let input = base64::Engine::decode(&base64::prelude::BASE64_STANDARD, input).unwrap_or_default();
                             buffer.extend_from_slice(&input);
                         },
                     }
                 } else {
+                    buffer.push(STD_INPUT_PREFIX);
                     input = input.chars().skip(1).collect();
                     let input = base64::Engine::decode(&base64::prelude::BASE64_STANDARD, input).unwrap_or_default();
                     buffer.extend_from_slice(&input);
+                }
+
+                if !resize_msg.is_empty() {
+                    buffer.clear();
+                    buffer.push(0x04);
+                    let input = resize_msg.as_bytes();
+                    buffer.extend_from_slice(input);
                 }
 
                 tracing::info!("=> sending message to kube: {:?}", buffer);
@@ -143,8 +156,8 @@ pub async fn handle_websocket<M>(
                         tracing::info!("Received text message: {}", text);
                     }
                     Message::Binary(data) => {
-                        let is_resv_msg = handle_binary(data, tx, step, debug).await;
-                        if is_resv_msg {
+                        tracing::info!("chat_no {}", &chat_no);
+                        if handle_binary(data, tx_kube, step, debug).await {
                             step += 1;
                         }
                     }
@@ -168,57 +181,49 @@ pub async fn handle_websocket<M>(
 
 pub async fn handle_binary(
     data: Vec<u8>,
-    tx: &mpsc::Sender<String>,
+    tx_kube: &mpsc::Sender<String>,
     step: i32,
     cmd_debug: Option<bool>,
 ) -> bool {
-    if !data.is_empty() {
-        match data[0] {
-            STD_OUTPUT_PREFIX_NORMAL => {
-                tracing::debug!("step {}, received org: {:?}", step, data[1..].to_vec());
-                let msg_ascii = data[1..].to_vec();
+    let data_exist = !data.is_empty();
+    let data_prefix = data[0];
+    let data_value = data[1..].to_vec();
 
-                let msg_ascii = if let Some(debug) = cmd_debug {
-                    match debug {
-                        true => local_dev_cmd_auxiliary_display(step, msg_ascii),
-                        false => msg_ascii,
+    if data_exist {
+        match data_prefix {
+            STD_OUTPUT_PREFIX_NORMAL => {
+                let msg_ascii = data_value;
+                tracing::debug!("step {}, received org: {:?}", step, msg_ascii);
+
+                let msg_ascii = cmd_debug.map_or(msg_ascii.clone(), |debug| {
+                    if debug {
+                        local_dev_cmd_auxiliary_display(step, msg_ascii)
+                    } else {
+                        msg_ascii
                     }
-                } else {
-                    msg_ascii
-                };
+                });
 
                 if !msg_ascii.is_empty() {
                     let kube_msg = base64::Engine::encode(&base64::prelude::BASE64_STANDARD, data);
-                    if tx.send(kube_msg).await.is_err() {
+                    if tx_kube.send(kube_msg).await.is_err() {
                         tracing::error!("Failed to send message to main");
-                    };
-
-                    // if let Ok(text) = String::from_utf8(msg_ascii) {
-                    //     tracing::debug!("step {}, received stdout: {}", step, text);
-                    //     if tx.send(text).await.is_err() {
-                    //         tracing::error!("Failed to send message to main");
-                    //     };
-                    // } else {
-                    //     tracing::info!("Failed to convert stdout to text");
-                    // }
+                    }
                 }
             }
             STD_OUTPUT_PREFIX_ERR => {
-                if let Ok(text) = String::from_utf8(data[1..].to_vec()) {
+                if let Ok(text) = String::from_utf8(data_value) {
                     tracing::info!("Received stderr: {}", text);
                 } else {
                     tracing::info!("Failed to convert stderr to text");
                 }
             }
             _ => {
-                tracing::info!("Unknown binary message prefix: {:?}", data[0]);
+                tracing::info!("Unknown binary message prefix: {:?}", data_prefix);
             }
         }
-        true
-    } else {
-        tracing::info!("Received empty binary message");
-        false
+        return true;
     }
+    false
 }
 
 fn local_dev_cmd_auxiliary_display(step: i32, mut msg_ascii: Vec<u8>) -> Vec<u8> {
