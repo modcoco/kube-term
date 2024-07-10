@@ -33,7 +33,7 @@ async fn handler(ws: WebSocketUpgrade) -> Response {
     ws.protocols(protocols).on_upgrade(handle_socket)
 }
 
-async fn handle_socket(mut socket: WebSocket) {
+async fn handle_socket(mut axum_socket: WebSocket) {
     let sat = ServiceAccountToken::new();
     let pod_exec_url = PodExecUrl {
         domain: String::from(&sat.kube_host),
@@ -62,10 +62,17 @@ async fn handle_socket(mut socket: WebSocket) {
 
     let conn = pod_exec_connector(&sat, &pod_exec_url, &pod_exec_params).await;
     match conn {
-        Ok(mut ws_stream) => {
+        Ok(mut kube_ws_stream) => {
             let mut closed = false;
             tokio::spawn(async move {
-                handle_websocket(&mut ws_stream, &mut rx_web, &tx_kube, &mut closed, None).await;
+                handle_websocket(
+                    &mut kube_ws_stream,
+                    &mut rx_web,
+                    &tx_kube,
+                    &mut closed,
+                    None,
+                )
+                .await;
             });
         }
         Err(err) => {
@@ -75,9 +82,9 @@ async fn handle_socket(mut socket: WebSocket) {
 
     loop {
         tokio::select! {
-            Some(client_msg) = socket.recv() => {
+            Some(client_msg) = axum_socket.recv() => {
                 let client_msg = if let Ok(client_msg) = client_msg {
-                    tracing::info!("Received from client: {:?}", client_msg);
+                    tracing::debug!("Received from client: {:?}", client_msg);
                     client_msg
                 } else {
                     tracing::info!("Client disconnected, the msg isn't ok");
@@ -90,9 +97,8 @@ async fn handle_socket(mut socket: WebSocket) {
             },
             Some(kube_msg) = rx_kube.recv() => {
                 tracing::debug!("Received from kubernetes: {}", kube_msg);
-                // let kube_msg = base64::Engine::encode(&base64::prelude::BASE64_STANDARD, kube_msg);
-                let kube_msg = Message::Text(format!("1{}", kube_msg));
-                if socket.send(kube_msg).await.is_err() {
+                let kube_msg = Message::Text(kube_msg);
+                if axum_socket.send(kube_msg).await.is_err() {
                     tracing::info!("Client disconnected, failed to send message");
                 }
             }
