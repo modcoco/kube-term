@@ -157,7 +157,7 @@ pub async fn handle_websocket<M>(
                     }
                     Message::Binary(data) => {
                         tracing::info!("chat_no {}", &chat_no);
-                        if handle_binary(data, tx_kube, step, debug).await {
+                        if handle_binary_to_kube_channel(data, tx_kube, step, debug).await {
                             step += 1;
                         }
                     }
@@ -179,7 +179,7 @@ pub async fn handle_websocket<M>(
     }
 }
 
-pub async fn handle_binary(
+pub async fn handle_binary_to_kube_channel(
     data: Vec<u8>,
     tx_kube: &mpsc::Sender<String>,
     step: i32,
@@ -206,7 +206,7 @@ pub async fn handle_binary(
                 if !msg_ascii.is_empty() {
                     let kube_msg = base64::Engine::encode(&base64::prelude::BASE64_STANDARD, data);
                     if tx_kube.send(kube_msg).await.is_err() {
-                        tracing::error!("Failed to send message to main");
+                        tracing::error!("Failed to send message to kube chanel");
                     }
                 }
             }
