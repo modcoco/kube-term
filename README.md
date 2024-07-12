@@ -1,2 +1,1 @@
-Connect to k8s pod by ws
-test
+Connect to k8s pod
