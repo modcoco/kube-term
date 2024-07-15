@@ -18,6 +18,7 @@ use pod_exec::{
     msg_handle::handle_websocket,
 };
 
+// todo post update to ws
 pub async fn init_router() {
     let app = Router::new()
         .route("/health", get(|| async { "Hello, World!" }))
