@@ -7,3 +7,4 @@ edition = "2021"
 common.workspace = true
 kube.workspace = true
 pod_exec = { path = "../pod_exec" }
+serde = { version = "1.0", features = ["derive"] }

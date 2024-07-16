@@ -7,8 +7,11 @@ use axum::{
     Router,
 };
 use common::{
-    axum::{self, extract::ws::Message},
-    // base64,
+    axum::{
+        self,
+        extract::{ws::Message, RawPathParams, RawQuery},
+        routing::{on, MethodFilter},
+    },
     tokio::{self, net::TcpListener, sync::mpsc},
     tracing,
 };
@@ -22,14 +25,31 @@ use pod_exec::{
 pub async fn init_router() {
     let app = Router::new()
         .route("/health", get(|| async { "Hello, World!" }))
-        .route("/", get(handler));
+        .route(
+            "/namespace/:namespace/pod/:pod/container/:container",
+            on(MethodFilter::GET, handler),
+        );
 
     tracing::info!("start web server...");
     let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
-async fn handler(ws: WebSocketUpgrade) -> Response {
+async fn handler(
+    ws: WebSocketUpgrade,
+    raw_path_params: RawPathParams,
+    RawQuery(row_query): RawQuery,
+) -> Response {
+    for (key, value) in &raw_path_params {
+        println!("{key:?} = {value:?}");
+    }
+    if let Some(query) = row_query {
+        let params: Vec<&str> = query.split('&').collect();
+        for param in params {
+            println!("Parameter: {}", param);
+        }
+    }
+
     let protocols: Vec<Cow<'static, str>> = vec![Cow::Borrowed("echo-protocol")];
     ws.protocols(protocols).on_upgrade(handle_socket)
 }
