@@ -17,7 +17,7 @@ use common::{
 };
 use kube::ServiceAccountToken;
 use pod_exec::{
-    connector::{pod_exec_connector, PodExecParams, PodExecPath, PodExecUrl},
+    connector::{pod_exec_connector, ContainerCoords, PodExecParams, PodExecUrl},
     msg_handle::handle_websocket,
 };
 
@@ -35,27 +35,6 @@ pub async fn init_router() {
     axum::serve(listener, app).await.unwrap();
 }
 
-#[derive(Debug, Default)]
-struct ContainerCoords {
-    namespace: String,
-    pod: String,
-    container: String,
-}
-
-impl ContainerCoords {
-    fn populate_from_raw_path_params(mut self, raw_path_params: &RawPathParams) -> Self {
-        for (key, value) in raw_path_params.iter() {
-            match key {
-                "namespace" => value.clone_into(&mut self.namespace),
-                "pod" => value.clone_into(&mut self.pod),
-                "container" => value.clone_into(&mut self.container),
-                _ => todo!(),
-            }
-        }
-        self
-    }
-}
-
 async fn handler(ws: WebSocketUpgrade, raw_path_params: RawPathParams) -> Response {
     let coords = ContainerCoords::default().populate_from_raw_path_params(&raw_path_params);
     tracing::info!("{:?}", coords);
@@ -67,27 +46,9 @@ async fn handler(ws: WebSocketUpgrade, raw_path_params: RawPathParams) -> Respon
 
 async fn handle_socket(mut axum_socket: WebSocket, coords: ContainerCoords) {
     let sat = ServiceAccountToken::new();
-    let pod_exec_url = PodExecUrl {
-        domain: String::from(&sat.kube_host),
-        port: String::from(&sat.kube_port),
-        path: PodExecPath {
-            base_path: String::from("/api/v1"),
-            namespace: String::from("/namespaces/default"),
-            pod: String::from("/pods/web-term-559fdfcd89-sck7p"),
-            tail_path: String::from("/exec"),
-        },
-    };
-    let pod_exec_params = PodExecParams {
-        container: coords.container,
-        stdin: true,
-        stdout: true,
-        stderr: true,
-        tty: true,
-        command: "env&env=TERM%3Dxterm&command=COLUMNS%3D800&command=LINES%3D10&command=bash"
-            .to_string(),
-        pretty: true,
-        follow: true,
-    };
+
+    let pod_exec_url = PodExecUrl::default().get_exec_url(&sat.kube_host, &sat.kube_port, &coords);
+    let pod_exec_params = PodExecParams::default().get_pod_exec_params(&coords);
 
     let (tx_web, mut rx_web) = mpsc::channel::<Message>(100);
     let (tx_kube, mut rx_kube) = mpsc::channel(100);

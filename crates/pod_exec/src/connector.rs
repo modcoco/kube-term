@@ -1,4 +1,5 @@
 use common::anyhow::{self, Result};
+use common::axum::extract::RawPathParams;
 use common::{tokio, tokio_tungstenite, tracing, url_https_builder};
 use kube::ServiceAccountToken;
 use std::fmt;
@@ -10,11 +11,46 @@ use tokio_tungstenite::tungstenite::http::header::{
 use tokio_tungstenite::{connect_async_tls_with_config, Connector};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
+pub struct ContainerCoords {
+    pub namespace: String,
+    pub pod: String,
+    pub container: String,
+}
+
+impl ContainerCoords {
+    pub fn populate_from_raw_path_params(mut self, raw_path_params: &RawPathParams) -> Self {
+        for (key, value) in raw_path_params.iter() {
+            match key {
+                "namespace" => value.clone_into(&mut self.namespace),
+                "pod" => value.clone_into(&mut self.pod),
+                "container" => value.clone_into(&mut self.container),
+                _ => todo!(),
+            }
+        }
+        self
+    }
+}
+
+#[derive(Debug, Default)]
 pub struct PodExecUrl {
     pub domain: String,
     pub port: String,
     pub path: PodExecPath,
+}
+impl PodExecUrl {
+    pub fn get_exec_url(&self, kube_host: &str, kube_port: &str, coords: &ContainerCoords) -> Self {
+        Self {
+            domain: String::from(kube_host),
+            port: String::from(kube_port),
+            path: PodExecPath {
+                base_path: String::from("/api/v1"),
+                namespace: format!("/namespaces/{}", coords.namespace),
+                pod: format!("/pods/{}", coords.pod),
+                tail_path: String::from("/exec"),
+            },
+        }
+    }
 }
 
 impl PodExecUrl {
@@ -23,7 +59,7 @@ impl PodExecUrl {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct PodExecPath {
     pub base_path: String,
     pub namespace: String,
@@ -41,7 +77,7 @@ impl fmt::Display for PodExecPath {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct PodExecParams {
     pub container: String,
     pub stdin: bool,
@@ -66,6 +102,19 @@ impl PodExecParams {
             self.pretty,
             self.follow
         )
+    }
+    pub fn get_pod_exec_params(&self, coords: &ContainerCoords) -> Self {
+        Self {
+            container: coords.container.clone(),
+            stdin: true,
+            stdout: true,
+            stderr: true,
+            tty: true,
+            command: "env&env=TERM%3Dxterm&command=COLUMNS%3D800&command=LINES%3D10&command=bash"
+                .to_string(),
+            pretty: true,
+            follow: true,
+        }
     }
 }
 
