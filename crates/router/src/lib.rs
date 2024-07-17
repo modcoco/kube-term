@@ -9,7 +9,7 @@ use axum::{
 use common::{
     axum::{
         self,
-        extract::{ws::Message, RawPathParams, RawQuery},
+        extract::{ws::Message, RawPathParams},
         routing::{on, MethodFilter},
     },
     tokio::{self, net::TcpListener, sync::mpsc},
@@ -35,26 +35,37 @@ pub async fn init_router() {
     axum::serve(listener, app).await.unwrap();
 }
 
-async fn handler(
-    ws: WebSocketUpgrade,
-    raw_path_params: RawPathParams,
-    RawQuery(row_query): RawQuery,
-) -> Response {
-    for (key, value) in &raw_path_params {
-        println!("{key:?} = {value:?}");
-    }
-    if let Some(query) = row_query {
-        let params: Vec<&str> = query.split('&').collect();
-        for param in params {
-            println!("Parameter: {}", param);
-        }
-    }
-
-    let protocols: Vec<Cow<'static, str>> = vec![Cow::Borrowed("echo-protocol")];
-    ws.protocols(protocols).on_upgrade(handle_socket)
+#[derive(Debug, Default)]
+struct ContainerCoords {
+    namespace: String,
+    pod: String,
+    container: String,
 }
 
-async fn handle_socket(mut axum_socket: WebSocket) {
+impl ContainerCoords {
+    fn populate_from_raw_path_params(mut self, raw_path_params: &RawPathParams) -> Self {
+        for (key, value) in raw_path_params.iter() {
+            match key {
+                "namespace" => value.clone_into(&mut self.namespace),
+                "pod" => value.clone_into(&mut self.pod),
+                "container" => value.clone_into(&mut self.container),
+                _ => todo!(),
+            }
+        }
+        self
+    }
+}
+
+async fn handler(ws: WebSocketUpgrade, raw_path_params: RawPathParams) -> Response {
+    let coords = ContainerCoords::default().populate_from_raw_path_params(&raw_path_params);
+    tracing::info!("{:?}", coords);
+
+    let protocols: Vec<Cow<'static, str>> = vec![Cow::Borrowed("echo-protocol")];
+    ws.protocols(protocols)
+        .on_upgrade(|axum_socket| handle_socket(axum_socket, coords))
+}
+
+async fn handle_socket(mut axum_socket: WebSocket, coords: ContainerCoords) {
     let sat = ServiceAccountToken::new();
     let pod_exec_url = PodExecUrl {
         domain: String::from(&sat.kube_host),
@@ -67,7 +78,7 @@ async fn handle_socket(mut axum_socket: WebSocket) {
         },
     };
     let pod_exec_params = PodExecParams {
-        container: "web-term".to_string(),
+        container: coords.container,
         stdin: true,
         stdout: true,
         stderr: true,
