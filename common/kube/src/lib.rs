@@ -5,6 +5,7 @@ use common::{
     native_tls::{self, TlsConnector},
     tracing,
 };
+use kube_runtime::{Client as KubeClient, Config};
 
 #[derive(Debug)]
 pub struct ServiceAccountToken {
@@ -115,4 +116,20 @@ impl ServiceAccountToken {
 
         Ok(builder.build()?)
     }
+}
+
+pub async fn init_kube_client() -> Result<KubeClient, anyhow::Error> {
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("Failed to install rustls crypto provider");
+
+    let app_env = std::env::var("APP_ENV")?;
+    let config = if app_env == "prod" {
+        Config::incluster()?
+    } else {
+        Config::infer().await?
+    };
+
+    let client = KubeClient::try_from(config)?;
+    Ok(client)
 }
