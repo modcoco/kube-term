@@ -10,7 +10,7 @@ use common::{
     tracing,
 };
 use context::Context;
-use pod_exec::handler;
+use pod_exec::{container_list, handler};
 
 pub async fn init_router() -> Router {
     let ctx = Context::new()
@@ -22,6 +22,7 @@ pub async fn init_router() -> Router {
 
     Router::new()
         .route("/health", get(|| async { "Hello, World!" }))
+        .route("/container", on(MethodFilter::GET, container_list))
         .route(
             "/namespace/:namespace/pod/:pod/container/:container",
             on(MethodFilter::GET, handler),

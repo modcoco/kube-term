@@ -1,3 +1,6 @@
+pub mod constants;
+pub mod err;
+
 pub use anyhow;
 pub use axum;
 pub use base64;
@@ -14,7 +17,6 @@ pub use tokio;
 pub use tokio_tungstenite;
 pub use tracing;
 
-pub mod constants;
 use constants::*;
 
 pub fn url_https_builder(domain: &str, port: &str, path: Option<&str>) -> String {

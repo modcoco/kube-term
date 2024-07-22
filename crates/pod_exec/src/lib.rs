@@ -10,14 +10,16 @@ use axum::{
 use common::{
     axum::{
         self,
-        extract::{ws::Message, RawPathParams},
+        extract::{ws::Message, Query, RawPathParams},
     },
+    err::AnyhowError,
     tokio::{self, sync::mpsc},
     tracing,
 };
 use connector::{pod_exec_connector, ContainerCoords, PodExecParams, PodExecUrl};
 use kube::ServiceAccountToken;
 use msg_handle::handle_websocket;
+use serde::{Deserialize, Serialize};
 
 pub async fn handler(ws: WebSocketUpgrade, raw_path_params: RawPathParams) -> Response {
     let coords = ContainerCoords::default().populate_from_raw_path_params(&raw_path_params);
@@ -81,4 +83,14 @@ pub async fn handle_socket(mut axum_socket: WebSocket, coords: ContainerCoords) 
             }
         }
     }
+}
+
+#[derive(Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContainerReq {
+    pub container: i32,
+}
+
+pub async fn container_list(Query(_req): Query<ContainerReq>) -> Result<(), AnyhowError> {
+    Ok(())
 }
