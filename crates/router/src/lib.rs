@@ -1,23 +1,30 @@
+mod context;
+
 use axum::{routing::get, Router};
 use common::{
     axum::{
         self,
         routing::{on, MethodFilter},
+        Extension,
     },
-    tokio::net::TcpListener,
     tracing,
 };
+use context::Context;
 use pod_exec::handler;
 
-pub async fn init_router() {
-    let app = Router::new()
+pub async fn init_router() -> Router {
+    let ctx = Context::new()
+        .await
+        .map_err(|err| {
+            tracing::error!("Get context err, {}", err);
+        })
+        .unwrap();
+
+    Router::new()
         .route("/health", get(|| async { "Hello, World!" }))
         .route(
             "/namespace/:namespace/pod/:pod/container/:container",
             on(MethodFilter::GET, handler),
-        );
-
-    tracing::info!("start web server...");
-    let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+        )
+        .layer(Extension(ctx))
 }
