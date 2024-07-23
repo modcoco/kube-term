@@ -21,7 +21,7 @@ use connector::{pod_exec_connector, ContainerCoords, PodExecParams, PodExecUrl};
 use kube::ServiceAccountToken;
 use msg_handle::handle_websocket;
 use serde::{Deserialize, Serialize};
-use util::err::AxumErr;
+use util::{err::AxumErr, rsp::Rsp};
 
 pub async fn handler(ws: WebSocketUpgrade, raw_path_params: RawPathParams) -> Response {
     let coords = ContainerCoords::default().populate_from_raw_path_params(&raw_path_params);
@@ -98,13 +98,9 @@ pub async fn container_list(Query(_req): Query<ContainerReq>) -> Result<(), Axum
 }
 
 pub async fn impl_into_response() -> Result<impl IntoResponse, AxumErr> {
-    Ok((StatusCode::OK, [("x-foo", "bar")], "Hello, World!"))
+    Ok(Rsp::success_with_optional_biz_status(
+        vec![1, 2, 3],
+        "Data fetched successfully.",
+        Some(1),
+    ))
 }
-
-// pub async fn impl_into_response2() -> Result<impl IntoResponse, AxumErr> {
-//     Ok(Rsp::success_with_optional_biz_status(
-//         vec![1, 2, 3],
-//         "Data fetched successfully.",
-//         Some(1),
-//     ))
-// }
