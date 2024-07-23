@@ -10,7 +10,7 @@ use router::init_router;
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
-    init_logger();
+    let _ = init_logger("pod-exec", false);
     let router = init_router().await;
     tracing::info!("start web server...");
     let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();

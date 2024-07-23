@@ -4,13 +4,13 @@ mod tests {
     use common::reqwest::blocking::Client;
     use common::reqwest::header::AUTHORIZATION;
     use common::reqwest::Certificate;
-    use common::{anyhow, tracing, url_https_builder};
+    use common::{anyhow, tracing};
     use common::{base64, tokio};
     use kube::ServiceAccountToken;
-    use logger::logger_trace::init_logger;
     use pod_exec::connector::{pod_exec_connector, PodExecParams, PodExecPath, PodExecUrl};
     use pod_exec::msg_handle::{handle_websocket, stdin_reader};
     use tokio::sync::mpsc;
+    use util::url_https_builder;
 
     #[test]
     fn str_trimmed() {
@@ -40,7 +40,7 @@ mod tests {
 
     #[test]
     fn rquest_tls() -> Result<(), anyhow::Error> {
-        logger::logger_trace::init_logger();
+        let _ = logger::logger_trace::init_logger("test_tls", false);
 
         let sat = ServiceAccountToken::new();
         let kubernetes_token = sat.token;
@@ -67,7 +67,8 @@ mod tests {
 
     #[tokio::test]
     async fn kube_cmd() {
-        init_logger();
+        let _ = logger::logger_trace::init_logger("test_cmd", false);
+
         let sat = ServiceAccountToken::new();
         let pod_exec_url = PodExecUrl {
             domain: String::from(&sat.kube_host),

@@ -1,11 +1,8 @@
 [package]
-name = "pod_exec"
+name = "util"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 common.workspace = true
-logger.workspace = true
-kube.workspace = true
-util.workspace = true
 serde = { version = "1.0", features = ["derive"] }

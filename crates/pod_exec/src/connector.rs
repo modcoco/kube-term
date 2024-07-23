@@ -1,6 +1,6 @@
 use common::anyhow::{self, Result};
 use common::axum::extract::RawPathParams;
-use common::{tokio, tokio_tungstenite, tracing, url_https_builder};
+use common::{tokio, tokio_tungstenite, tracing};
 use kube::ServiceAccountToken;
 use std::fmt;
 use tokio::net::TcpStream;
@@ -10,6 +10,7 @@ use tokio_tungstenite::tungstenite::http::header::{
 };
 use tokio_tungstenite::{connect_async_tls_with_config, Connector};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+use util::url_https_builder;
 
 #[derive(Debug, Default)]
 pub struct ContainerCoords {

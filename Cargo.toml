@@ -1,8 +1,9 @@
 [workspace]
-members = ["common/version","common/*","crates/*"]
+members = ["common/*","crates/*"]
 resolver = "2"
 
 [workspace.dependencies]
 common = { path = "./common/version" }
 logger = { path = "./common/logger" }
 kube = { path = "./common/kube" }
+util = { path = "./common/util" }
