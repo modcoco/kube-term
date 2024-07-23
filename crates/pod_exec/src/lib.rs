@@ -13,7 +13,6 @@ use common::{
         extract::{ws::Message, Query, RawPathParams},
         response::IntoResponse,
     },
-    reqwest::StatusCode,
     tokio::{self, sync::mpsc},
     tracing,
 };
