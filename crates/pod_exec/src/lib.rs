@@ -12,7 +12,7 @@ use common::{
         self,
         extract::{ws::Message, Query, RawPathParams},
     },
-    err::AnyhowError,
+    err::AxumErr,
     tokio::{self, sync::mpsc},
     tracing,
 };
@@ -91,6 +91,6 @@ pub struct ContainerReq {
     pub container: i32,
 }
 
-pub async fn container_list(Query(_req): Query<ContainerReq>) -> Result<(), AnyhowError> {
+pub async fn container_list(Query(_req): Query<ContainerReq>) -> Result<(), AxumErr> {
     Ok(())
 }

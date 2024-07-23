@@ -1,8 +1,8 @@
 // Make our own error that wraps `anyhow::Error`.
-pub struct AnyhowError(anyhow::Error);
+pub struct AxumErr(anyhow::Error);
 
-// Convert AnyhowError into axum response.
-impl axum::response::IntoResponse for AnyhowError {
+// Convert AxumErr into axum response.
+impl axum::response::IntoResponse for AxumErr {
     fn into_response(self) -> axum::response::Response {
         (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
@@ -13,8 +13,8 @@ impl axum::response::IntoResponse for AnyhowError {
 }
 
 // This enables using `?` on functions that return `Result<_, anyhow::Error>` to turn them into
-// `Result<_, AnyhowError>`. That way you don't need to do that manually.
-impl<E> From<E> for AnyhowError
+// `Result<_, AxumErr>`. That way you don't need to do that manually.
+impl<E> From<E> for AxumErr
 where
     E: Into<anyhow::Error>,
 {
