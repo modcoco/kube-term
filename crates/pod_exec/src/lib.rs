@@ -92,11 +92,8 @@ pub struct ContainerReq {
     pub container: i32,
 }
 
-pub async fn container_list(Query(_req): Query<ContainerReq>) -> Result<(), AxumErr> {
-    Ok(())
-}
-
-pub async fn impl_into_response() -> Result<impl IntoResponse, AxumErr> {
+pub async fn container_list(Query(req): Query<ContainerReq>) -> Result<impl IntoResponse, AxumErr> {
+    println!("{}", req.container);
     Ok(Rsp::success_with_optional_biz_status(
         vec![1, 2, 3],
         "Data fetched successfully.",
