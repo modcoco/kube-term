@@ -1,5 +1,3 @@
-mod context;
-
 use axum::{routing::get, Router};
 use common::{
     axum::{
@@ -9,7 +7,8 @@ use common::{
     },
     tracing,
 };
-use context::Context;
+
+use context::context::Context;
 use pod_exec::{container_list, handler};
 
 pub async fn init_router() -> Router {

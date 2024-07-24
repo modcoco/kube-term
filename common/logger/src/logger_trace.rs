@@ -53,18 +53,14 @@ impl FormatTime for LocalTimer {
     }
 }
 
-pub fn init_logger(app_name: &str, log_to_file: bool) -> (ReloadLogLevelHandle, WorkerGuard) {
+pub fn init_logger(
+    app_name: &str,
+    log_to_file: bool,
+) -> (ReloadLogLevelHandle, Option<WorkerGuard>) {
     let default_filter = tracing_subscriber::EnvFilter::new(
         std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
     );
     let (filter, reload_handle) = tracing_subscriber::reload::Layer::new(default_filter);
-
-    let file_appender = RollingFileAppender::new(
-        Rotation::DAILY,
-        get_os_log_directory(app_name),
-        to_snake_case(app_name),
-    );
-    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
     let stdout_layer = tracing_subscriber::fmt::layer()
         .with_line_number(true)
@@ -73,28 +69,34 @@ pub fn init_logger(app_name: &str, log_to_file: bool) -> (ReloadLogLevelHandle, 
         .with_ansi(true)
         .with_timer(LocalTimer);
 
-    let file_layer = tracing_subscriber::fmt::layer()
-        .with_line_number(true)
-        .with_thread_ids(true)
-        .with_thread_names(true)
-        .with_level(true)
-        .with_target(true)
-        .with_writer(non_blocking)
-        .with_ansi(false)
-        .with_timer(LocalTimer);
-
     let registry = tracing_subscriber::registry()
         .with(filter)
         .with(stdout_layer);
 
-    if log_to_file {
+    let guard = if log_to_file {
+        let file_appender = RollingFileAppender::new(
+            Rotation::DAILY,
+            get_os_log_directory(app_name),
+            to_snake_case(app_name),
+        );
+        let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
+        let file_layer = tracing_subscriber::fmt::layer()
+            .with_line_number(true)
+            .with_thread_ids(true)
+            .with_thread_names(true)
+            .with_level(true)
+            .with_target(true)
+            .with_writer(non_blocking)
+            .with_ansi(false)
+            .with_timer(LocalTimer);
         _ = registry.with(file_layer).try_init();
+        Some(guard)
     } else {
         _ = registry.try_init();
-    }
+        None
+    };
 
     tracing::info!("Logger initialized");
-
     (reload_handle, guard)
 }
 
