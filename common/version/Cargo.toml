@@ -22,13 +22,13 @@ reqwest = { version = "0.12.2", features = [
 ] }
 anyhow = { version = "1.0.79", features = ["std"] }
 thiserror = "1.0.56"
-sqlx = { version = "0.7.4", features = [
+sqlx = { version = "0.8.0", features = [
     "postgres",
     "runtime-tokio-rustls",
     "macros",
     "chrono",
 ] }
-sqlx-postgres = "0.7.0"
+sqlx-postgres = "0.8.0"
 async-trait = "0.1.77"
 delay_timer = "0.11.5"
 dotenv = "0.15.0"
