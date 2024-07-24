@@ -7,6 +7,7 @@ use reqwest::StatusCode;
 use serde::Serialize;
 
 #[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct Rsp<T> {
     code: u16,
     message: String,
