@@ -12,12 +12,18 @@ use common::{
         self,
         extract::{ws::Message, Query, RawPathParams},
         response::IntoResponse,
+        Extension,
     },
     tokio::{self, sync::mpsc},
     tracing,
 };
 use connector::{pod_exec_connector, ContainerCoords, PodExecParams, PodExecUrl};
-use kube::ServiceAccountToken;
+use context::context::Context;
+use kube::{
+    k8s_openapi::api::core::v1::Pod,
+    kube_runtime::{api::ListParams, Api},
+    ServiceAccountToken,
+};
 use msg_handle::handle_websocket;
 use serde::{Deserialize, Serialize};
 use util::{err::AxumErr, rsp::Rsp};
@@ -90,12 +96,54 @@ pub async fn handle_socket(mut axum_socket: WebSocket, coords: ContainerCoords) 
 #[serde(rename_all = "camelCase")]
 pub struct ContainerReq {
     pub container: i32,
+    pub page_token: Option<String>,
 }
 
-pub async fn container_list(Query(req): Query<ContainerReq>) -> Result<impl IntoResponse, AxumErr> {
+pub async fn container_list(
+    Query(req): Query<ContainerReq>,
+    Extension(ctx): Extension<Context>,
+) -> Result<impl IntoResponse, AxumErr> {
     println!("{}", req.container);
+
+    let pods: Api<Pod> = Api::namespaced(ctx.kube_client.clone(), "kube-system");
+
+    let mut lp = ListParams::default().limit(3);
+    if let Some(token) = req.page_token {
+        lp = lp.continue_token(&token);
+    }
+
+    let pods = pods.list(&lp).await?;
+
+    let continue_token = &pods.metadata.continue_;
+    tracing::info!("continue_koken {:?}", continue_token);
+
+    let mut container_coords_list = Vec::new();
+    for p in pods {
+        let namespace = p.metadata.namespace.clone().unwrap_or_default();
+        let pod_name = p.metadata.name.clone().unwrap_or_default();
+
+        if let Some(spec) = p.spec {
+            for container in &spec.containers {
+                let container_name = container.name.clone();
+                tracing::info!(
+                    "namespace: {:?}, podname: {:?}, container_name: {:?}",
+                    namespace,
+                    pod_name,
+                    container_name
+                );
+
+                let container_coords = ContainerCoords {
+                    namespace: namespace.clone(),
+                    pod: pod_name.clone(),
+                    container: container_name,
+                };
+                container_coords_list.push(container_coords)
+            }
+        }
+    }
+
     Ok(Rsp::success_with_optional_biz_status(
-        vec![1, 2, 3],
+        container_coords_list,
         "Data fetched successfully.",
         Some(1),
     ))

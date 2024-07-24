@@ -8,4 +8,5 @@ common.workspace = true
 logger.workspace = true
 kube.workspace = true
 util.workspace = true
+context.workspace = true
 serde = { version = "1.0", features = ["derive"] }
