@@ -2,7 +2,7 @@ use common::anyhow::{self, Result};
 use common::axum::extract::RawPathParams;
 use common::{tokio, tokio_tungstenite, tracing};
 use kube::ServiceAccountToken;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::handshake::client::Request;
@@ -12,6 +12,16 @@ use tokio_tungstenite::tungstenite::http::header::{
 use tokio_tungstenite::{connect_async_tls_with_config, Connector};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use util::url_https_builder;
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct ContainerCoordsOptional {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub namespace: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pod: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub container: Option<String>,
+}
 
 #[derive(Debug, Default, Serialize)]
 pub struct ContainerCoords {

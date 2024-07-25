@@ -17,7 +17,9 @@ use common::{
     tokio::{self, sync::mpsc},
     tracing,
 };
-use connector::{pod_exec_connector, ContainerCoords, PodExecParams, PodExecUrl};
+use connector::{
+    pod_exec_connector, ContainerCoords, ContainerCoordsOptional, PodExecParams, PodExecUrl,
+};
 use context::context::Context;
 use kube::{
     k8s_openapi::api::core::v1::Pod,
@@ -95,7 +97,27 @@ pub async fn handle_socket(mut axum_socket: WebSocket, coords: ContainerCoords) 
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ContainerReq {
+    pub ns: Option<String>,
     pub container: i32,
+    pub page_size: Option<i8>,
+    pub page_token: Option<String>,
+}
+
+#[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContainerSimpleInfo {
+    #[serde(flatten)]
+    pub container: ContainerCoordsOptional,
+    pub pod_ip: String,
+    pub pod_phase: String,
+    pub container_image: String,
+}
+
+#[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContainerRsp {
+    pub container_list: Vec<ContainerSimpleInfo>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub page_token: Option<String>,
 }
 
@@ -105,9 +127,12 @@ pub async fn container_list(
 ) -> Result<impl IntoResponse, AxumErr> {
     println!("{}", req.container);
 
-    let pods: Api<Pod> = Api::namespaced(ctx.kube_client.clone(), "kube-system");
+    let pods: Api<Pod> = Api::namespaced(
+        ctx.kube_client.clone(),
+        &req.ns.unwrap_or("default".to_owned()),
+    );
 
-    let mut lp = ListParams::default().limit(3);
+    let mut lp = ListParams::default().limit(req.page_size.unwrap_or(4).try_into().unwrap());
     if let Some(token) = req.page_token {
         lp = lp.continue_token(&token);
     }
@@ -117,14 +142,19 @@ pub async fn container_list(
     let continue_token = &pods.metadata.continue_;
     tracing::info!("continue_koken {:?}", continue_token);
 
-    let mut container_coords_list = Vec::new();
-    for p in pods {
+    let mut container_list = Vec::new();
+    for p in &pods {
         let namespace = p.metadata.namespace.clone().unwrap_or_default();
         let pod_name = p.metadata.name.clone().unwrap_or_default();
+        let pod_status = p.status.clone().unwrap_or_default();
+        let pod_ip = pod_status.pod_ip.unwrap_or("<unkonwn>".to_owned());
+        let pod_phase = pod_status.phase.unwrap_or("<unkonwn>".to_owned());
 
-        if let Some(spec) = p.spec {
+        if let Some(spec) = &p.spec {
             for container in &spec.containers {
                 let container_name = container.name.clone();
+                let container_image = container.image.clone().unwrap_or("<unkonwn>".to_owned());
+
                 tracing::info!(
                     "namespace: {:?}, podname: {:?}, container_name: {:?}",
                     namespace,
@@ -132,18 +162,29 @@ pub async fn container_list(
                     container_name
                 );
 
-                let container_coords = ContainerCoords {
-                    namespace: namespace.clone(),
-                    pod: pod_name.clone(),
-                    container: container_name,
+                let container_coords = ContainerCoordsOptional {
+                    namespace: None,
+                    pod: Some(pod_name.clone()),
+                    container: Some(container_name),
                 };
-                container_coords_list.push(container_coords)
+                let container = ContainerSimpleInfo {
+                    container: container_coords,
+                    pod_ip: pod_ip.clone(),
+                    pod_phase: pod_phase.clone(),
+                    container_image,
+                };
+                container_list.push(container)
             }
         }
     }
 
+    let container_res = ContainerRsp {
+        container_list,
+        page_token: continue_token.clone(),
+    };
+
     Ok(Rsp::success_with_optional_biz_status(
-        container_coords_list,
+        container_res,
         "Data fetched successfully.",
         Some(1),
     ))
