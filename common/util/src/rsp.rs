@@ -11,7 +11,9 @@ use serde::Serialize;
 pub struct Rsp<T> {
     code: u16,
     message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     data: Option<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     biz_status: Option<i32>,
     #[serde(skip_serializing)]
     http_status: StatusCode,

@@ -22,7 +22,7 @@ use connector::{
 };
 use context::context::Context;
 use kube::{
-    k8s_openapi::api::core::v1::Pod,
+    k8s_openapi::api::core::v1::{Namespace, Pod},
     kube_runtime::{api::ListParams, Api},
     ServiceAccountToken,
 };
@@ -96,7 +96,7 @@ pub async fn handle_socket(mut axum_socket: WebSocket, coords: ContainerCoords) 
 
 #[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ContainerReq {
+pub struct ContainerQuery {
     pub ns: Option<String>,
     pub container: i32,
     pub page_size: Option<i8>,
@@ -122,7 +122,7 @@ pub struct ContainerRsp {
 }
 
 pub async fn container_list(
-    Query(req): Query<ContainerReq>,
+    Query(req): Query<ContainerQuery>,
     Extension(ctx): Extension<Context>,
 ) -> Result<impl IntoResponse, AxumErr> {
     println!("{}", req.container);
@@ -187,5 +187,24 @@ pub async fn container_list(
         container_res,
         "Data fetched successfully.",
         Some(1),
+    ))
+}
+
+pub async fn ns_list(Extension(ctx): Extension<Context>) -> Result<impl IntoResponse, AxumErr> {
+    let namespaces: Api<Namespace> = Api::all(ctx.kube_client.clone());
+
+    let lp = ListParams::default();
+    let ns_list = namespaces.list(&lp).await?;
+
+    let mut namespace_list = Vec::new();
+    for ns in ns_list.items {
+        let ns_name = ns.metadata.name.as_deref().unwrap_or("<unknown>");
+        tracing::info!("Namespace name: {}", ns_name);
+        namespace_list.push(ns_name.to_owned());
+    }
+
+    Ok(Rsp::success_with_data(
+        namespace_list,
+        "Data fetched successfully.",
     ))
 }
