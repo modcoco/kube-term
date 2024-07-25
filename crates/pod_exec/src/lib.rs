@@ -98,7 +98,6 @@ pub async fn handle_socket(mut axum_socket: WebSocket, coords: ContainerCoords) 
 #[serde(rename_all = "camelCase")]
 pub struct ContainerQuery {
     pub ns: Option<String>,
-    pub container: i32,
     pub page_size: Option<i8>,
     pub page_token: Option<String>,
 }
@@ -125,7 +124,7 @@ pub async fn container_list(
     Query(req): Query<ContainerQuery>,
     Extension(ctx): Extension<Context>,
 ) -> Result<impl IntoResponse, AxumErr> {
-    println!("{}", req.container);
+    tracing::info!("Get container list");
 
     let pods: Api<Pod> = Api::namespaced(
         ctx.kube_client.clone(),
@@ -191,6 +190,7 @@ pub async fn container_list(
 }
 
 pub async fn ns_list(Extension(ctx): Extension<Context>) -> Result<impl IntoResponse, AxumErr> {
+    tracing::info!("Get namespace list");
     let namespaces: Api<Namespace> = Api::all(ctx.kube_client.clone());
 
     let lp = ListParams::default();
@@ -199,7 +199,6 @@ pub async fn ns_list(Extension(ctx): Extension<Context>) -> Result<impl IntoResp
     let mut namespace_list = Vec::new();
     for ns in ns_list.items {
         let ns_name = ns.metadata.name.as_deref().unwrap_or("<unknown>");
-        tracing::info!("Namespace name: {}", ns_name);
         namespace_list.push(ns_name.to_owned());
     }
 
