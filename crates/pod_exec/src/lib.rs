@@ -162,7 +162,7 @@ pub async fn container_list(
                 );
 
                 let container_coords = ContainerCoordsOptional {
-                    namespace: None,
+                    namespace: Some(namespace.clone()),
                     pod: Some(pod_name.clone()),
                     container: Some(container_name),
                 };
