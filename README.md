@@ -1,1 +1,1 @@
-Connect to k8s pod
+Connect to k8s pod backend
