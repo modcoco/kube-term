@@ -199,6 +199,12 @@ pub async fn ns_list(Extension(ctx): Extension<Context>) -> Result<impl IntoResp
     let mut namespace_list = Vec::new();
     for ns in ns_list.items {
         let ns_name = ns.metadata.name.as_deref().unwrap_or("<unknown>");
+        let ns_uid = ns.metadata.uid.as_deref().unwrap_or("<unknown>");
+        let resource_version = ns
+            .metadata
+            .resource_version
+            .as_deref()
+            .unwrap_or("<unknown>");
         namespace_list.push(ns_name.to_owned());
     }
 
