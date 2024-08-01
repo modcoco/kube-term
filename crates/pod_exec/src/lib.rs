@@ -189,6 +189,14 @@ pub async fn container_list(
     ))
 }
 
+#[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NamespaceSimpleInfo {
+    pub id: String,
+    pub name: String,
+    pub resource_version: String,
+}
+
 pub async fn ns_list(Extension(ctx): Extension<Context>) -> Result<impl IntoResponse, AxumErr> {
     tracing::info!("Get namespace list");
     let namespaces: Api<Namespace> = Api::all(ctx.kube_client.clone());
@@ -205,7 +213,13 @@ pub async fn ns_list(Extension(ctx): Extension<Context>) -> Result<impl IntoResp
             .resource_version
             .as_deref()
             .unwrap_or("<unknown>");
-        namespace_list.push(ns_name.to_owned());
+
+        let ns = NamespaceSimpleInfo {
+            id: ns_uid.to_string(),
+            name: ns_name.to_string(),
+            resource_version: resource_version.to_string(),
+        };
+        namespace_list.push(ns);
     }
 
     Ok(Rsp::success_with_data(
