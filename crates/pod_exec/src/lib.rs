@@ -195,6 +195,7 @@ pub struct NamespaceSimpleInfo {
     pub id: String,
     pub name: String,
     pub resource_version: String,
+    pub r#type: String,
 }
 
 pub async fn ns_list(Extension(ctx): Extension<Context>) -> Result<impl IntoResponse, AxumErr> {
@@ -218,6 +219,7 @@ pub async fn ns_list(Extension(ctx): Extension<Context>) -> Result<impl IntoResp
             id: ns_uid.to_string(),
             name: ns_name.to_string(),
             resource_version: resource_version.to_string(),
+            r#type: "Kube".to_string(),
         };
         namespace_list.push(ns);
     }
