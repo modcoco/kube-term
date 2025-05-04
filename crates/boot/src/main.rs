@@ -13,6 +13,6 @@ async fn main() {
     let (_h, _w) = init_logger("pod-exec", true);
     let router = init_router().await;
     tracing::info!("start web server...");
-    let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
+    let listener = TcpListener::bind("0.0.0.0:8081").await.unwrap();
     axum::serve(listener, router).await.unwrap();
 }
