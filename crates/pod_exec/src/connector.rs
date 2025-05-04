@@ -152,7 +152,7 @@ pub async fn pod_exec_connector(
         .header(CONNECTION, "Upgrade")
         .header(UPGRADE, "websocket")
         .header(SEC_WEBSOCKET_VERSION, "13")
-        .header("Authorization", format!("Bearer {}", kubernetes_token))
+        .header("Authorization", format!("Bearer {kubernetes_token}"))
         .header(SEC_WEBSOCKET_PROTOCOL, "channel.k8s.io")
         .body(())?;
 

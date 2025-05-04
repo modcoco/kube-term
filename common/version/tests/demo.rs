@@ -21,22 +21,22 @@ mod tests {
     fn str_trimmed() {
         let str = "nvidia.com";
         let trimmed_str = str.trim_end_matches(".com");
-        println!("{}", trimmed_str);
+        println!("{trimmed_str}");
     }
 
     #[test]
     fn calculate() {
         let memory: i64 = 1055924872;
         let memory = ((memory as f64) / (1000.0 * 1000.0)).round() as i64;
-        println!("{}", memory);
+        println!("{memory}");
 
         let memory: i64 = 1055924872;
         let memory = memory / (1000 * 1000);
-        println!("{}", memory);
+        println!("{memory}");
 
         let memory: i64 = 1055924872;
         let memory = to_gb(memory);
-        println!("{}", memory);
+        println!("{memory}");
     }
 
     fn naive_datetime_with_offset(start_time: NaiveDateTime, offset_hours: i32) -> NaiveDateTime {
@@ -55,7 +55,7 @@ mod tests {
 
         let naive_start_time_utc_plus_8 = naive_datetime_with_offset(start_time, 8);
 
-        println!("NaiveDateTime with UTC+8: {}", naive_start_time_utc_plus_8);
+        println!("NaiveDateTime with UTC+8: {naive_start_time_utc_plus_8}");
     }
 
     #[test]
@@ -77,9 +77,9 @@ mod tests {
                 .unwrap();
 
         let start_time = start_time - chrono::Duration::hours(8);
-        println!("{}", start_time);
+        println!("{start_time}");
         let now = chrono::Local::now().naive_local() - chrono::Duration::hours(8);
 
-        println!("{}", now);
+        println!("{now}");
     }
 }
