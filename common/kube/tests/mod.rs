@@ -18,13 +18,13 @@ mod tests {
     fn str_trimmed() {
         let str = "nvidia.com";
         let trimmed_str = str.trim_end_matches(".com");
-        println!("{}", trimmed_str);
+        println!("{trimmed_str}");
     }
 
     #[test]
     fn test_env() {
         let ps = ServiceAccountToken::new();
-        println!("{:?}", ps)
+        println!("{ps:?}")
     }
 
     #[test]
@@ -41,10 +41,7 @@ mod tests {
             .build()?;
 
         let mut headers = HeaderMap::new();
-        headers.insert(
-            AUTHORIZATION,
-            format!("Bearer {}", kubernetes_token).parse()?,
-        );
+        headers.insert(AUTHORIZATION, format!("Bearer {kubernetes_token}").parse()?);
 
         let url = url_https_builder(&sat.kube_host, &sat.kube_port, Some("/version"));
         let response = client.get(url).headers(headers).send()?;
@@ -68,10 +65,7 @@ mod tests {
             .build()?;
 
         let mut headers = HeaderMap::new();
-        headers.insert(
-            AUTHORIZATION,
-            format!("Bearer {}", kubernetes_token).parse()?,
-        );
+        headers.insert(AUTHORIZATION, format!("Bearer {kubernetes_token}").parse()?);
 
         let url = url_https_builder(
             &sat.kube_host,
@@ -103,7 +97,7 @@ mod tests {
         for p in pods {
             // println!("name {:?}", p);
             let json_string = serde_json::to_string(&p).expect("Failed to convert to JSON");
-            println!("name {}", json_string);
+            println!("name {json_string}");
         }
 
         let namespaces: Api<Namespace> = Api::all(client);
@@ -113,7 +107,7 @@ mod tests {
 
         for ns in ns_list.items {
             let ns_name = ns.metadata.name.as_deref().unwrap_or("<unknown>");
-            println!("Namespace name: {}", ns_name);
+            println!("Namespace name: {ns_name}");
         }
         let continue_token = ns_list.metadata.continue_.clone().unwrap_or_default();
 
@@ -124,7 +118,7 @@ mod tests {
 
         for ns in ns_list.items {
             let ns_name = ns.metadata.name.as_deref().unwrap_or("<unknown>");
-            println!("Namespace2 name: {}", ns_name);
+            println!("Namespace2 name: {ns_name}");
         }
 
         Ok(())
@@ -149,10 +143,10 @@ mod tests {
             Ok(config_map) => {
                 let pretty_config_map =
                     serde_json::to_string_pretty(&config_map).unwrap_or_default();
-                println!("Config Map: {}", pretty_config_map);
+                println!("Config Map: {pretty_config_map}");
             }
             Err(e) => {
-                eprintln!("Error fetching config map: {:?}", e);
+                eprintln!("Error fetching config map: {e:?}");
             }
         }
 
@@ -181,9 +175,9 @@ mod tests {
             Ok(config_map_list) => {
                 for config_map in config_map_list {
                     if let Some(name) = &config_map.metadata.name {
-                        println!("ConfigMap name: {}", name);
+                        println!("ConfigMap name: {name}");
                         if let Some(data) = &config_map.data {
-                            println!("ConfigMap data: {:?}", data);
+                            println!("ConfigMap data: {data:?}");
                         } else {
                             println!("ConfigMap does not contain data.");
                         }
@@ -191,7 +185,7 @@ mod tests {
                 }
             }
             Err(e) => {
-                eprintln!("Error listing config maps: {:?}", e);
+                eprintln!("Error listing config maps: {e:?}");
             }
         }
 
@@ -218,16 +212,16 @@ mod tests {
         // 获取指定的 ConfigMap
         match config_maps.get(config_map_name).await {
             Ok(config_map) => {
-                println!("ConfigMap name: {}", config_map_name);
+                println!("ConfigMap name: {config_map_name}");
                 if let Some(data) = config_map.data {
-                    println!("ConfigMap data: {:?}", data);
+                    println!("ConfigMap data: {data:?}");
                     println!("ConfigMap data: {:?}", data.get("config.yaml"));
                 } else {
                     println!("ConfigMap does not contain data.");
                 }
             }
             Err(e) => {
-                eprintln!("Error fetching ConfigMap: {:?}", e);
+                eprintln!("Error fetching ConfigMap: {e:?}");
             }
         }
 
@@ -255,12 +249,12 @@ mod tests {
             Ok(config_map_list) => {
                 for config_map in config_map_list {
                     if let Some(name) = config_map.metadata.name {
-                        println!("ConfigMap name: {}", name);
+                        println!("ConfigMap name: {name}");
                     }
                 }
             }
             Err(e) => {
-                eprintln!("Error listing config maps: {:?}", e);
+                eprintln!("Error listing config maps: {e:?}");
             }
         }
 
@@ -284,12 +278,12 @@ mod tests {
 
         match config_maps.get(config_map_name).await {
             Ok(config_map) => {
-                println!("ConfigMap name: {}", config_map_name);
+                println!("ConfigMap name: {config_map_name}");
                 if let Some(data) = config_map.data {
                     if let Some(config_toml) = data.get("config.toml") {
                         let toml_data: HashMap<String, String> = toml::from_str(config_toml)?;
                         if let Some(develop_image_tag) = toml_data.get("TomlKey") {
-                            println!("TomlKey: {}", develop_image_tag);
+                            println!("TomlKey: {develop_image_tag}");
                         } else {
                             println!("Key 'TomlKey' not found in config.toml.");
                         }
@@ -301,7 +295,7 @@ mod tests {
                 }
             }
             Err(e) => {
-                eprintln!("Error fetching ConfigMap: {:?}", e);
+                eprintln!("Error fetching ConfigMap: {e:?}");
             }
         }
 
