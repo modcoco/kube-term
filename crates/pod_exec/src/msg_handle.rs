@@ -152,7 +152,7 @@ pub async fn handle_binary_to_kube_channel(
 
                 if !msg_ascii.is_empty() {
                     let kube_msg = base64::Engine::encode(&base64::prelude::BASE64_STANDARD, data);
-                    let kube_msg = format!("1{}", kube_msg);
+                    let kube_msg = format!("1{kube_msg}");
                     if tx_kube.send(kube_msg).await.is_err() {
                         tracing::error!("Failed to send message to kube chanel");
                     }
@@ -227,7 +227,7 @@ fn build_ascii_msg(mut input: String, resize_msg: String, debug: Option<bool>) -
         return buffer;
     }
 
-    if debug.map_or(true, |debug| !debug) {
+    if debug.is_none_or(|debug| !debug) {
         buffer.push(STD_INPUT_PREFIX);
         input = input.chars().skip(1).collect();
         let input =

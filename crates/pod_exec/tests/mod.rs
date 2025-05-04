@@ -16,13 +16,13 @@ mod tests {
     fn str_trimmed() {
         let str = "nvidia.com";
         let trimmed_str = str.trim_end_matches(".com");
-        println!("{}", trimmed_str);
+        println!("{trimmed_str}");
     }
 
     #[test]
     fn test_env() {
         let ps = ServiceAccountToken::new();
-        println!("{:?}", ps)
+        println!("{ps:?}")
     }
 
     //
@@ -35,7 +35,7 @@ mod tests {
         let input =
             base64::Engine::decode(&base64::prelude::BASE64_STANDARD, input).unwrap_or_default();
 
-        println!("{:?}", input)
+        println!("{input:?}")
     }
 
     #[test]
@@ -52,10 +52,7 @@ mod tests {
             .build()?;
 
         let mut headers = HeaderMap::new();
-        headers.insert(
-            AUTHORIZATION,
-            format!("Bearer {}", kubernetes_token).parse()?,
-        );
+        headers.insert(AUTHORIZATION, format!("Bearer {kubernetes_token}").parse()?);
 
         let url = url_https_builder(&sat.kube_host, &sat.kube_port, Some("/version"));
         let response = client.get(url).headers(headers).send()?;
