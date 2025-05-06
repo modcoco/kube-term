@@ -161,7 +161,7 @@ pub fn get_os_log_directory(app_name: &str) -> PathBuf {
 
     #[cfg(target_os = "linux")]
     {
-        PathBuf::from(format!("/var/log/{}", _snake_name))
+        PathBuf::from(format!("/var/log/{_snake_name}"))
     }
     #[cfg(target_os = "windows")]
     {
